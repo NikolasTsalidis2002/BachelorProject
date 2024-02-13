@@ -1,0 +1,80 @@
+
+dev: False #if in dev mode, do not save output, etc.
+
+
+##############
+# Experiment #
+##############
+n_iterations: 2
+save_every: 1
+with_llm: True
+
+#What are we varying in the main experiment (if any)
+varying_focus_parameter: True
+focus_parameter_abm: "similarity_threshold"
+focus_parameter_llm: "polarization"
+
+##############
+# Model - General #
+##############
+name: "schelling"
+parameters:
+  beliefs: ["fervently socialist", "moderately socialist", "slightly socialist-inclined", "centrist", "slightly conservative-inclined", "moderately conservative", "fervently conservative"]
+  personas: ["socialist", "conservative"]
+  ratio: [0.4, 0.4]
+  perception_radius: 1
+  update_likelihood: 1.0
+  early_stopping: True # if probability update, may not stop
+
+grid:
+  dimensions: [4, 4]
+
+
+##############
+# ABM Model#
+##############
+model_class_abm: "SchellingABMModel"
+parameters_abm:  #TODO: Rather than threshold could choose likelihood of moving
+  similarity_threshold: [0.3, 0.5, 0.7]
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+
+##############
+# LLM Model#
+##############
+model_class_llm: "SchellingLLMModel"
+
+parameters_llm:
+  llm_name: "gpt3" #here shortcut name for model (cf dictionary below)
+  temperature: 0.8
+  top_p: 0.95
+  prompt: ""
+  polarization: [0.5]
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+
+
+
+##############
+# Not Used Currently #
+##############
+memory_buffer_size: 1000
+forgetting_rate: 0.5
+
+##############
+# GPT #
+##############
+llm_model: 
+  llama2: "llama-2-7b-chat.ggmlv3.q8_0"
+  gpt3: "gpt-3.5-turbo" 
+  gpt4: "gpt-4" 
+
+
+max_tokens:
+  llama-2-7b-chat.ggmlv3.q8_0: 4000
+  gpt-3.5-turbo: 4000
+  gpt-4: 8000
+
+
+
+

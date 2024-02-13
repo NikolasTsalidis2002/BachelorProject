@@ -1,0 +1,16 @@
+agentpy
+company
+imageio
+matplotlib
+networkx
+numpy
+openai
+Pillow
+producer
+PyYAML
+rewards
+tiktoken
+torch
+openllm
+ollama
+openllm[vllm]

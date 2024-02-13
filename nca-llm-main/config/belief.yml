@@ -1,0 +1,69 @@
+
+dev: False #if in dev mode, do not save output, etc.
+
+
+##############
+# Experiment #
+##############
+n_iterations: 3
+save_every: 1
+with_llm: True
+
+#What are we varying in the main experiment (if any)
+varying_focus_parameter: True
+focus_parameter_llm: "ratio"
+
+
+##############
+# Model - General #
+##############
+name: "belief"
+parameters:
+  personas: ["believer", "nonbeliever"]
+  perception_radius: 1
+  update_likelihood: 0.5
+  early_stopping: True # if probability update, may not stop
+
+grid:
+  dimensions: [2, 2]
+
+
+
+##############
+# ABM Model#
+##############
+#similarity threshold is a list
+model_class_abm: "BeliefABMModel"
+parameters_abm:  #TODO: Rather than threshold could choose likelihood of moving
+  ratio: [[0.3, 0.5]] #ratio believing in  #TODO: change to ratio of each persona
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+
+##############
+# LLM Model#
+##############
+model_class_llm: "BeliefLLMModel"
+parameters_llm:
+  llm_name: "gpt3"
+  ratio: [[0.3, 0.5]]  # #ratio believing in  #TODO: change to ratio of each persona
+  temperature: 0.8
+  top_p: 0.95
+  max_tokens: 1000
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+
+##############
+# GPT #
+##############
+llm_model:
+  llama2: "llama-2-7b-chat.ggmlv3.q8_0"
+  gpt3: "gpt-3.5-turbo" #"gpt-3.5-turbo" 
+  gpt4: "gpt-4" #"gpt-3.5-turbo" 
+
+max_tokens:
+  llama-2-7b-chat.ggmlv3.q8_0: 4000
+  gpt-3.5-turbo: 4000
+  gpt-4: 8000
+
+
+
