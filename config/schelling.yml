@@ -1,0 +1,72 @@
+
+dev: False #if in dev mode, do not save output, etc.
+
+
+##############
+# Experiment #
+##############
+n_iterations: 4
+save_every: 1
+grid_size: [3, 3]
+
+##############
+# Model - General #
+##############
+name: "schelling"
+parameters:
+  personas: ["socialist", "conservative"] #NOTE: may change to anything, and any number of (yet has to match the ratio length)
+  ratio: [0.4, 0.3] # proportion of each persona types. #NOTE: it should not sum to 1 as there should have some empty cells on the grid
+  perception_radius: 1 #int, how far the agent can perceive its neigbors
+  update_likelihood: 1.0 #float, probability of updating the agent's position at each iteration, between 0 and 1
+  early_stopping: True # if probability update, may not stop
+  #  beliefs: ["fervently socialist", "moderately socialist", "slightly socialist-inclined", "centrist", "slightly conservative-inclined", "moderately conservative", "fervently conservative"]
+
+
+##############
+# LLM Model#
+##############
+model_class_llm: "SchellingLLMModel"
+
+parameters_llm:
+  llm_name: "ollama_llama2" #here shortcut name for model (cf dictionary below) ollama_llama2
+  temperature: 0.8
+  top_p: 0.95
+  prompt: ""
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+#  polarization: 0.5
+
+
+##############
+# ABM Model#
+##############
+model_class_abm: "SchellingABMModel"
+parameters_abm:  #TODO: Rather than threshold could choose likelihood of moving
+  similarity_threshold: 0.3 # 0.5, 0.7
+  recent_memory: False #if use recent memory
+  external_memory: False #if use external memory
+
+
+##############
+# Not Used Currently #
+##############
+memory_buffer_size: 1000
+forgetting_rate: 0.5
+
+##############
+# GPT #
+##############
+llm_model: 
+  llama2: "llama-2-7b-chat.ggmlv3.q8_0"
+  gpt3: "gpt-3.5-turbo" 
+  gpt4: "gpt-4" 
+
+
+max_tokens:
+  llama-2-7b-chat.ggmlv3.q8_0: 4000
+  gpt-3.5-turbo: 4000
+  gpt-4: 8000
+
+
+
+
