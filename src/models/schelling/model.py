@@ -81,6 +81,7 @@ class SchellingLLMModel(GridModel):
 
         for agent in self.agents.values():
             neighbors = agent.get_neighbors(self.agents, k=self.perception_radius)
+            #should return the number of neighbors that agree with the agent's state
             count_similar = sum([1 for n in neighbors if self.check_similarity_state(n.state, agent.state)])
             try:
                 similarity.append(float(count_similar) / (len(neighbors)))
@@ -168,17 +169,22 @@ class SchellingABMModel(GridModel):
         #TODO: in case more than 2 types, check ratio of similar types among neighbors
 
         """
+        #pos parameter is the empty positions
+        #neighbors are the 8 points surrounding the empty position (assuming k=1)
         neighbors = [
             self.agents[(x, y)]
             for x in range(pos[0] - k, pos[0] + k + 1)
             for y in range(pos[1] - k, pos[1] + k + 1)
             if (x, y) in self.agents.keys()
         ]
+        #? should never get to this point but idk
         if len(neighbors) == 0:
             return [1 for i in range(len(self.personas))]
+        #finding how many of the neigghbors surrounding the empty position are from one persona or the other (conservative or socialist)    
         count_similar = [sum([1 for n in neighbors if n.state == i]) for i in range(len(self.personas))]
         ratios = [float(count_similar[i]) / len(neighbors) for i in range(len(self.personas))]
-        return ratios
+        return ratios  #example empty spot has 3 socialist and 5 conservative neighbors, this returns [3/8, 5/8]
+       
     
     def check_similarity_state(self, state1, state2):
         return state1==state2

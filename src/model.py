@@ -85,13 +85,13 @@ class GridModel():
         """
         #reset
         rated_positions={}
-        #
+        #find empty positions (where agents arent present at the coordinate)
         empty_positions = [(i,j) for i in range(self.dimensions[0]) for j in range(self.dimensions[1]) if (i,j) not in self.agents.keys()]
         #print("TP Empty positions", empty_positions)
         for position in empty_positions:
-            rated_positions[position]=self.evaluate_position(position, k=self.perception_radius)
+            rated_positions[position]=self.evaluate_position(position, k=self.perception_radius) #this should return the ratios of the neighbors of the empty positions
 
-        return rated_positions
+        return rated_positions #contains the ratios of the neighbors of all the empty positions
     
     def get_state_numerical(self, state):
         """
@@ -123,35 +123,41 @@ class GridModel():
         possible_positions=None
         #0-- rate all empty positions if dynamic
         if self.dynamic: # ie if agents move on the grid
-            rated_positions=self.evaluate_empty_positions()
+            rated_positions=self.evaluate_empty_positions() 
+            #aka malloc rated_positions into possible positions
             possible_positions = copy.deepcopy(rated_positions) #TODO better
 
         for agent in tp_agents.values():
             r=random.random()
-            #Copy position
+            #Copy position of the agent
             old_position = copy.deepcopy(agent.position)
 
 
-            #TODO: If do not update each step keep memory ?
+            #TODO: If do not update each step keep memory ? 
+
             if r <= self.update_likelihood:
 
-                # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic
-                perception=agent.perceive(tp_agents)
+                # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic                
+                # notice the tp_agents is a copy of all the agents (in a new memory address)
+                # notice -> this perceive comes from the script (schelling) agentABM
+                perception=agent.perceive(tp_agents) #either 0, true or false
                 
                 # 2--- action agent
+                #if_action either 1 or 0 (move or not)
+                #new_position will be set to the empty position that has a better satisfaction
                 if_action, new_position=agent.update(perception, rated_positions=possible_positions, **kwargs)
 
-                count+=if_action
+                count+=if_action #counts the number of updates (agents that do move)
                 if self.dynamic and (new_position is not None):
                     print("Moved agent from {} to {} in agent grid".format(old_position, new_position))
-                    assert new_position==agent.position
+                    assert new_position==agent.position #shd be true
                     assert new_position in possible_positions.keys()
-                    del possible_positions[new_position]
-                    self.update_agents_dic(agent, old_position, new_position)
+                    del possible_positions[new_position] #already moved to that position, so not empty anymore
+                    self.update_agents_dic(agent, old_position, new_position) 
 
                 time.sleep(1)
 
-        
+        #returns the ratio of agents that have moved
         return count/num_agents if num_agents>0 else 0
     
     def update_agents_dic(self, agent, old_position, new_position):
@@ -160,8 +166,10 @@ class GridModel():
         """
         # Move agent to new position in grid
         #print("TP current positions self.agents before dic update", self.agents.keys())
+        #these 2 lines move the agent to the new position in the grid, then empties the old position       
         self.agents[new_position] = agent
         del self.agents[old_position]
+  
         #print("TP current positions self.agents after dic update ", self.agents.keys())
 
 
@@ -204,9 +212,9 @@ class GridModel():
 
         # 1-- Run the simulation for n_iterations
         for i in range(n_iterations):
-            ratio=self.update()
+            ratio=self.update() #the ratio of agents that have moved
             ratio_actions.append(ratio)
-            score_population.append(self.evaluate_population())
+            score_population.append(self.evaluate_population()) #appends the current score of the grid
             print("Step " + str(i) + " : " + str(ratio) + " % updates")
 
             # Save data every X steps
@@ -214,6 +222,8 @@ class GridModel():
                 #print("TP Saving iteration " + str(i))
                 data[i] = {str(key): val.state for key, val in self.agents.items()}
             
+            final_score=round(self.evaluate_population(),3)
+
             if ratio == 0 and self.early_stopping: #then stop
                 print("Converged, early stopping at {} iterations".format(i))
                 break
@@ -225,7 +235,7 @@ class GridModel():
             if not os.path.exists("outputs/"+self.id):
                 os.makedirs("outputs/"+self.id)
 
-            final_score=round(self.evaluate_population(),3)
+            
 
             #NOTE: if data string, convert it to float or int for visualisation
             last_data={str(key): self.get_state_numerical(val.state) for key, val in self.agents.items()}
