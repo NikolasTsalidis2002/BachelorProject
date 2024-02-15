@@ -45,7 +45,8 @@ class SchellingLLMModel(GridModel):
 
         #self.beliefs = self.initialise_beliefs_population(num_agents_by_type, bias, self.config["parameters_llm"]["polarization"])
         for n in range(num_agents):
-            self.agents[self.positions[n]] = SchellingLLMAgent(self.config, state=states[n], position=self.positions[n], client=self.client)
+            # self.client is initialised in GirdModel -> and the client is OpenAi in the case of wanting to use it
+            self.agents[self.positions[n]] = SchellingLLMAgent(self.config, state=states[n], position=self.positions[n], client=self.client) 
         
 
     def check_similarity_state(self, state1, state2):

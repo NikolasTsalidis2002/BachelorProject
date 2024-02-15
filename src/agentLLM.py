@@ -22,6 +22,7 @@ import yaml
 class LLMAgent:
 
     def __init__(self, config, state=None, message=None, persona="", name=None, extra_prompt="", client=None):
+        # this class is initiated in agentLLM.py (src -> GridLLMAgent.__init__())
         """
         LLM Agent
         #NOTE: persona is an id of the persona, not the persona itself
@@ -29,19 +30,19 @@ class LLMAgent:
 
         """
 
-        self.name = random.choice(NAMES) if name is None else name
+        self.name = random.choice(NAMES) if name is None else name # the name is going to be random coming from the list of naames in src.prompts.persona
         self.state = state
         self.config = config
 
         self.persona = persona
-        self.system_prompt = PERSONAS[persona].format(name=self.name) + extra_prompt
-
+        self.system_prompt = PERSONAS[persona].format(name=self.name) +  # defines the roles of the personas -> ie: "socialist": """You play the role of {name}, which defines itself as socialist, living in California. 
+        # self.llm_name comes from config (config[parameters_llm][llm_name])
         if self.llm_name in config["llm_model"].keys():  # if llm_name a shortcut of full model name
             self.model = config["llm_model"][self.llm_name]
         else:
             self.model = self.llm_name
 
-        self.chatbot = self.initialise_llm(self.model)
+        self.chatbot = self.initialise_llm(self.model) # it is going to be llama
 
         # Memory
         self.recent_memory = []
@@ -50,7 +51,7 @@ class LLMAgent:
         self.message = message  # What transmit to neighbors initially
         self.historics = {"prompt": self.system_prompt, "state": [self.state], "message": [self.message]}
 
-        self.PROMPTS = META_PROMPTS
+        self.PROMPTS = META_PROMPTS # this is the PERCEPTION and UPDATE
 
         self.client = client
 
@@ -58,7 +59,7 @@ class LLMAgent:
         """
         Initialise the LLM model
         """
-
+        # it esentially only accepts llama as a valid model (ensure llama is present in config[parameters_llm][llm_name])
         if "ollama" in model_name:
             return None
 
@@ -91,13 +92,13 @@ class LLMAgent:
                     },
                     {
                         "role": "user",
-                        "content": prompt,
+                        "content": prompt, # it tells the agent what to do... (reflect on whether to move or not)
                     },
                 ],
                 options = {
-                    "num_predict": max_tokens,
-                    "temperature": self.temperature,
-                    "top_p": self.top_p,
+                    "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
+                    "temperature": self.temperature, #Controls the randomness of the output
+                    "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
  #                   "repeat_penalty": 1.176,
 #                    "top_k": 40
                 } 
@@ -295,10 +296,12 @@ class GridLLMAgent(LLMAgent):
     # NOTE LLMAgent first means that the methods of LLMAgent will be used first if there is a conflict
 
     def __init__(self, config, position=None, state=None, message=None, persona="", extra_prompt="", client=None):
+        # this class is initiated in agentLLM.py (src -> SchellingLLMAgent.__init__())
         """
         LLM Agent for grid model
         """
-        for key, val in config["parameters_llm"].items():
+        # to the class GridLLMAgent(LLMAgent), add attributes given in config["parameters_llm"] (among them llm_name)
+        for key, val in config["parameters_llm"].items(): 
             setattr(self, key, val)
 
         self.position = tuple(position)  # Ensure position is a tuple for immutability

@@ -30,6 +30,7 @@ class GridModel():
 
         if self.with_llm:
             for key, val in config["parameters_llm"].items():
+                # to the class GridModel, add attributes given in config["parameters_llm"] (among them llm_name)
                 setattr(self, key, val)
         else:
             for key, val in config["parameters_abm"].items():
@@ -139,9 +140,9 @@ class GridModel():
 
                 # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic                
                 # notice the tp_agents is a copy of all the agents (in a new memory address)
-                # notice -> this perceive comes from the script (schelling) agentABM
+                # notice -> this perceive comes from the script (schelling) agentABM/agentLLM
                 perception=agent.perceive(tp_agents) #either 0, true or false
-                
+                # for llm is going to return a dictionary with local and global keys (global is ignored for now. Local is going to have as a value the following: # Your neighborhood is composed of the following: James which is conservative...)
                 # 2--- action agent
                 #if_action either 1 or 0 (move or not)
                 #new_position will be set to the empty position that has a better satisfaction
@@ -197,7 +198,6 @@ class GridModel():
         """"
         Run the simulation for n_iterations
         Save data every X steps and do some visualisation of the results.
-
         """
 
         # For storing agent states at each iteration

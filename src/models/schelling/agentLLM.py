@@ -7,10 +7,11 @@ from src.models.schelling.prompts.meta import META_PROMPTS
 
 
 
-class SchellingLLMAgent(GridLLMAgent):
+class SchellingLLMAgent(GridLLMAgent):    
     # TODO DOUBLE INHERITANCE LLM AGENT AND GRID AGENT...
-
+    
     def __init__(self, config, position=None, state=None, client=None):
+        # this class is initiated in model.py (schelling -> SchellingLLMModel.initialise_population())
         """
         Note here the state of the Schelling agent is is type .
         """
@@ -41,18 +42,22 @@ class SchellingLLMAgent(GridLLMAgent):
         prompts = self.PROMPTS["perception"]
 
         perception = {}
-
+        # list of agents that are neighbors with the agent in the update() method 
         neighbors = self.get_neighbors(agents, k=self.config["parameters"]["perception_radius"])
 
         perception["local"] = ""
         if len(neighbors) > 0:
             shared = ""
-            for n in neighbors:
+            for n in neighbors: # iterate thorugh the agent neighbors
                 if n.message is not None and n.message != "":
+                    # n.message = random & n.message = persona (conservative or socialist)
                     shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
+                    # shared is going to be a long string where it has the different names saying what their persona is (ie: james is conservative. Peter is socialist...)
             if shared != "":
+                # Your neighborhood is composed of the following: shared
                 perception["local"] = prompts["local"].format(local_perception=shared) + shared
 
+        # we are not taking global perception into consideration??? -> global_perception is not given as an argument in the update method
         perception["global"] = ""
         if (global_perception is not None) and "global" in prompts.keys():
             perception["global"] = prompts["global"].format(global_perception=global_perception)
@@ -60,7 +65,7 @@ class SchellingLLMAgent(GridLLMAgent):
         # Update score perception
         self.score = (
             1 if len(neighbors) == 0 else sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
-        )
+        ) # is the ratio of neighbors that agree in persona with the agent at the time 
 
         return perception
 
@@ -74,7 +79,7 @@ class SchellingLLMAgent(GridLLMAgent):
         context = self.get_context_from_perception(perception)
 
         # If satisfied, do nothing
-        if perception is None:
+        if perception is None: # how can it be none???? how does perception represent satisfaction???
             return 0, None
 
         # filter dictionary to only keep better positions #TODO:
@@ -85,8 +90,9 @@ class SchellingLLMAgent(GridLLMAgent):
             return 0, None
 
         # Check if want to move
+        # Context: perceptions[local] + update part in meta.py (conisderation part )
         prompt = context + self.PROMPTS["update"].format(name=self.name)
-        response = self.ask_llm(prompt, max_tokens=5)
+        response = self.ask_llm(prompt, max_tokens=5) # given instructions and commands, it will make a prediction on what to do
         if "STAY" in response:
             print(f"TP detail: STAY agent state {self.state} and context {context}")
             return 0, None
