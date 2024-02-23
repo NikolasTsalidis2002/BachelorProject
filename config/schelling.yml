@@ -7,7 +7,8 @@ dev: False #if in dev mode, do not save output, etc.
 ##############
 n_iterations: 4
 save_every: 1
-grid_size: [3, 3]
+# grid_size: [3, 3]
+grid_size: [4, 4]
 
 ##############
 # Model - General #
@@ -15,7 +16,8 @@ grid_size: [3, 3]
 name: "schelling"
 parameters:
   personas: ["socialist", "conservative"] #NOTE: may change to anything, and any number of (yet has to match the ratio length)
-  ratio: [0.4, 0.3] # proportion of each persona types. #NOTE: it should not sum to 1 as there should have some empty cells on the grid
+  # ratio: [0.4, 0.3] # proportion of each persona types. #NOTE: it should not sum to 1 as there should have some empty cells on the grid
+  ratio: [0.5, 0.3] # proportion of each persona types. #NOTE: it should not sum to 1 as there should have some empty cells on the grid
   perception_radius: 1 #int, how far the agent can perceive its neigbors
   update_likelihood: 1.0 #float, probability of updating the agent's position at each iteration, between 0 and 1
   early_stopping: True # if probability update, may not stop

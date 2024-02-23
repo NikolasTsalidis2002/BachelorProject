@@ -238,6 +238,11 @@ class GridModel():
             
 
             #NOTE: if data string, convert it to float or int for visualisation
+            for k,v in self.agents.items():
+                print('self.agents ---> ',k,v,'\n\tname --> ',v.name,'\n\tstate --> ',v.state,'\n\tmessage --> ',v.message
+,'\n\tpersona --> ',v.persona,'\n\tsystem_prompt --> ',v.system_prompt,'\n\tmessage --> ',v.message)
+
+                
             last_data={str(key): self.get_state_numerical(val.state) for key, val in self.agents.items()}
             
             #TODO: color issue

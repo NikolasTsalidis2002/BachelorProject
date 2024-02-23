@@ -35,7 +35,7 @@ class LLMAgent:
         self.config = config
 
         self.persona = persona
-        self.system_prompt = PERSONAS[persona].format(name=self.name) +  # defines the roles of the personas -> ie: "socialist": """You play the role of {name}, which defines itself as socialist, living in California. 
+        self.system_prompt = PERSONAS[persona].format(name=self.name) + extra_prompt # defines the roles of the personas -> ie: "socialist": """You play the role of {name}, which defines itself as socialist, living in California. 
         # self.llm_name comes from config (config[parameters_llm][llm_name])
         if self.llm_name in config["llm_model"].keys():  # if llm_name a shortcut of full model name
             self.model = config["llm_model"][self.llm_name]
