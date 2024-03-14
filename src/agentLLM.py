@@ -3,7 +3,7 @@ import time
 
 # from llama_cpp import Llama #https://llama-cpp-python.readthedocs.io/en/latest/api-reference
 from src.prompts.persona import PERSONAS, NAMES
-from src.prompts.base import META_PROMPTS
+#from src.prompts.base import META_PROMPTS
 import time
 import numpy as np
 import networkx as nx
@@ -51,7 +51,11 @@ class LLMAgent:
         self.message = message  # What transmit to neighbors initially
         self.historics = {"prompt": self.system_prompt, "state": [self.state], "message": [self.message]}
 
+<<<<<<< Updated upstream
         self.PROMPTS = META_PROMPTS # this is the PERCEPTION and UPDATE
+=======
+        #self.PROMPTS = META_PROMPTS
+>>>>>>> Stashed changes
 
         self.client = client
 
@@ -104,6 +108,7 @@ class LLMAgent:
                 } 
             )
             response=output["message"]["content"]
+            print(response)
 
         elif "llama" in self.model:
             prompt = "<<SYS>>\n" + self.system_prompt + "\n<</SYS>>\n\n" + "[INST]" + prompt + "[/INST]"
@@ -114,7 +119,7 @@ class LLMAgent:
             response = output["choices"][0]["text"]
             # __call__(prompt, suffix=None, max_tokens=128, temperature=0.8, top_p=0.95, logprobs=None, echo=False, stop=[], frequency_penalty=0.0, presence_penalty=0.0, repeat_penalty=1.1, top_k=40, stream=False, tfs_z=1.0, mirostat_mode=0, mirostat_tau=5.0, mirostat_eta=0.1, model=None, stopping_criteria=None, logits_processor=None, grammar=None)
             # create_completion(prompt, suffix=None, max_tokens=128, temperature=0.8, top_p=0.95, logprobs=None, echo=False, stop=[], frequency_penalty=0.0, presence_penalty=0.0, repeat_penalty=1.1, top_k=40, stream=False, tfs_z=1.0, mirostat_mode=0, mirostat_tau=5.0, mirostat_eta=0.1, model=None, stopping_criteria=None, logits_processor=None, grammar=None)
-
+            
         elif "gpt" in self.model:
         
 
@@ -139,102 +144,102 @@ class LLMAgent:
 
         else:
             raise NotImplementedError
-
+        print(response)
         return response
 
-    def perceive(self, agents, global_perception=None):
-        """
-        Perception by default is made by: one own state, some global perception and some local perceptions ("neighbor messages/states")
-        """
+    # def perceive(self, agents, global_perception=None):
+    #     """
+    #     Perception by default is made by: one own state, some global perception and some local perceptions ("neighbor messages/states")
+    #     """
 
-        prompts = self.PROMPTS["perception"]
+    #     prompts = self.PROMPTS["perception"]
 
-        perception = {}
+    #     perception = {}
 
-        if "self" in prompts.keys():
-            perception["self"] = prompts["self"].format(name=self.name, state=self.get_state_as_text())
+    #     if "self" in prompts.keys():
+    #         perception["self"] = prompts["self"].format(name=self.name, state=self.get_state_as_text())
 
-        neighbors = self.get_neighbors(agents, k=self.config["parameters"]["perception_radius"])
-        perception["local"] = ""
-        if len(neighbors) > 0:
-            shared = ""
-            for n in neighbors:
-                if n.message is not None and n.message != "":
-                    shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
-            if shared != "":
-                perception["local"] = prompts["local"].format(local_perception=shared)
+    #     neighbors = self.get_neighbors(agents, k=self.config["parameters"]["perception_radius"])
+    #     perception["local"] = ""
+    #     if len(neighbors) > 0:
+    #         shared = ""
+    #         for n in neighbors:
+    #             if n.message is not None and n.message != "":
+    #                 shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
+    #         if shared != "":
+    #             perception["local"] = prompts["local"].format(local_perception=shared)
 
-        perception["global"] = ""
-        if (global_perception is not None) and "global" in prompts.keys():
-            perception["global"] = prompts["global"].format(global_perception=global_perception)
+    #     perception["global"] = ""
+    #     if (global_perception is not None) and "global" in prompts.keys():
+    #         perception["global"] = prompts["global"].format(global_perception=global_perception)
 
-        return perception
+    #     return perception
 
-    def update(self, perception, **kwargs):
-        """
-        (1) May decide to update its state given the context.
-        Here, position is not updated (static agent), but cf. schelling model to see an example of update of position
+    # def update(self, perception, **kwargs):
+    #     """
+    #     (1) May decide to update its state given the context.
+    #     Here, position is not updated (static agent), but cf. schelling model to see an example of update of position
 
-        (2) May decide to transmit a message to its neighbors.
+    #     (2) May decide to transmit a message to its neighbors.
 
-        Return updated (1 or 0) and transmission (1 or 0)
-        """
-        prompts = self.PROMPTS["update"]
+    #     Return updated (1 or 0) and transmission (1 or 0)
+    #     """
+    #     prompts = self.PROMPTS["update"]
 
-        # Form context
-        context = self.get_context_from_perception(perception)
+    #     # Form context
+    #     context = self.get_context_from_perception(perception)
 
-        ##### 1-- UPDATE STATE
-        prompt = context + prompts.format(name=self.name)
-        response = self.ask_llm(prompt)  # , max_tokens=100
+    #     ##### 1-- UPDATE STATE
+    #     prompt = context + prompts.format(name=self.name)
+    #     response = self.ask_llm(prompt)  # , max_tokens=100
         
-        print(f"TP UPDATE response of {self.name}:", response)
-        if "[CHANGE]" in response:
-            self.state = self.extract_state_from_text(response.split("[CHANGE]")[1])
+    #     print(f"TP UPDATE response of {self.name}:", response)
+    #     if "[CHANGE]" in response:
+    #         self.state = self.extract_state_from_text(response.split("[CHANGE]")[1])
 
-        # UPDATE ITS MEMORY
-        # self.update_recent_memory(perception)
-        # self.update_external_memory(perception)
+    #     # UPDATE ITS MEMORY
+    #     # self.update_recent_memory(perception)
+    #     # self.update_external_memory(perception)
 
-        ###### 2-- TRANSMISSION MESSAGE
-        time.sleep(1)  # TODO: temp because of gpt limit
-        transmission = self.transmit(context)
+    #     ###### 2-- TRANSMISSION MESSAGE
+    #     time.sleep(1)  # TODO: temp because of gpt limit
+    #     transmission = self.transmit(context)
 
-        # 3-- Save historical states
-        self.historics["state"].append(self.state)
-        self.historics["message"].append(self.message)
+    #     # 3-- Save historical states
+    #     self.historics["state"].append(self.state)
+    #     self.historics["message"].append(self.message)
 
-        return bool("[CHANGE]" in response), transmission
+    #     return bool("[CHANGE]" in response), transmission
 
-    def transmit(self, context, **kwargs):
-        """
-        May decide to transmit a message to its neighbor.
-        Here, done by updating the message attribute of the agent.
-        """
-        prompts = self.PROMPTS["transmit"]
+    # def transmit(self, context, **kwargs):
+    #     """
+    #     May decide to transmit a message to its neighbor.
+    #     Here, done by updating the message attribute of the agent.
+    #     """
+    #     prompts = self.PROMPTS["transmit"]
 
-        if self.message != "":
-            previous_message = "PREVIOUS MESSAGE TRANSMITTED:" + self.message
-            prompt = context + previous_message + prompts.format(name=self.name)
-        else:
-            prompt = context + prompts.format(name=self.name)
+    #     if self.message != "":
+    #         previous_message = "PREVIOUS MESSAGE TRANSMITTED:" + self.message
+    #         prompt = context + previous_message + prompts.format(name=self.name)
+    #     else:
+    #         prompt = context + prompts.format(name=self.name)
 
-        response = self.ask_llm(prompt)  # max_tokens=100
-        print(f"TP TRANSMIT response of {self.name}:", response)
+    #     response = self.ask_llm(prompt)  # max_tokens=100
+    #     print(f"TP TRANSMIT response of {self.name}:", response)
 
-        if "NONE" in response:
-            self.message = ""
-            return 0
-        else:
-            if "[SHARE]" in response:
-                self.message = response.split("[SHARE]")[1]
-            elif "SHARE" in response:
-                self.message = response.split("SHARE")[1]
-            else:
-                print(f"ISSUE TRANSMIT reponse has not SHAREif {response}")
-                self.message = ""
+    #     if "NONE" in response:
+    #         self.message = ""
+    #         return 0
+    #     else:
+    #         if "[SHARE]" in response:
+    #             self.message = response.split("[SHARE]")[1]
+    #         elif "SHARE" in response:
+    #             self.message = response.split("SHARE")[1]
+    #         else:
+    #             print(f"ISSUE TRANSMIT reponse has not SHAREif {response}")
+    #             self.message = ""
 
-            return 1
+    #         return 1
 
     def get_context_from_perception(self, perception):
         """
