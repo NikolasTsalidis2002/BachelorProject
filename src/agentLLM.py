@@ -104,6 +104,9 @@ class LLMAgent:
                 } 
             )
             response=output["message"]["content"]
+            print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
+            print('\tThis is the content the user is using --> {}'.format(prompt))
+            print('\tThis is the response --> {}'.format(response))
 
         elif "llama" in self.model:
             prompt = "<<SYS>>\n" + self.system_prompt + "\n<</SYS>>\n\n" + "[INST]" + prompt + "[/INST]"

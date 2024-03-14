@@ -7,8 +7,7 @@ dev: False #if in dev mode, do not save output, etc.
 ##############
 n_iterations: 4
 save_every: 1
-# grid_size: [3, 3]
-grid_size: [4, 4]
+grid_size: [3, 3]
 
 ##############
 # Model - General #
