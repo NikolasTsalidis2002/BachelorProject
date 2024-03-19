@@ -144,7 +144,7 @@ class LLMAgent:
             print('\ttarget_belief --> ',target_belief)
             print('\tmost_common_belief --> ',most_common_belief)
             print('\tright_answer --> ',right_answer)
-            print('\n{} can {} live in the neighborhood'.format(target,right_answer))
+            print('\n\t{} can {} live in the neighborhood'.format(target,right_answer))
 
             # Following this, you can proceed with the rest of your script using the revised prompt.
             conversation = [
@@ -156,7 +156,10 @@ class LLMAgent:
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
             response = ollama.chat(model='llama2', 
-                                   messages=conversation
+                                   messages=conversation,
+                                    options = {
+                                        "num_predict": 30
+                                    }                                      
                                    )['message']['content']
             print('\n### Response --> ', response)
 
@@ -196,7 +199,7 @@ class LLMAgent:
                         """
                         Given this promt: {}
                         Given this promt correction advice: {}
-                        If the promt correction advice returns "CORRECT" then return "NO CHANGES MADE"
+                        If the promt correction advice returns "CORRECT" then return "The person can live in the neighborhood."
                         Else, and only if the the promt has not returned "CORRECT", the do the following:
                             Task: 
                                 Create a new promts (instruction) that could answer the following task: {}.
@@ -217,17 +220,24 @@ class LLMAgent:
             
             # given final putput, choose to stay or move
             conversation = [
-                {"role": "system", "content": "You are an expert at promts."},
+                {
+                    "role": "system",
+                    "content": "You are an expert at interpreting prompts. Think critically and follow the given criteria."
+                },
                 {
                     'role': 'user',
                     'content':
                         """
-                        Given this promt: {}
-                        Answer only with STAY or MOVE. Like this:
-                        - If you you believe person could live with neighbors, respond with: "MOVE"
-                        - If you you believe person could not live with neighbors, respond with: "STAY"
-                        Remember, the answer MUST answer only STAY or MOVE.
-                        """.format(new_promt)
+                        For each given prompt, respond only with "STAY" or "MOVE" based on this logic:
+                        - Respond with "STAY" if the person should continue living with their neighbors. Consider factors like compatibility, shared interests, and positive interactions.
+                        - Respond with "MOVE" if the person should not continue living with their neighbors. Consider factors like conflicts, safety concerns, and significantly different lifestyles.
+                        Only the words "STAY" or "MOVE" should be in your response.
+
+                        Example: Given the scenario 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
+                        The appropriate response would be "MOVE" because the scenario highlights incompatible living situations.
+
+                        It is extremely important that your answer is only one word long, with simply "MOVE" or "STAY", otherwise the whole system breaks down.
+                        """
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
@@ -235,12 +245,13 @@ class LLMAgent:
             answer = ollama.chat(model='llama2', 
                                     messages=conversation,
                                     options = {
-                                        "num_predict": 3
+                                        "num_predict": 20
                                     }                                    
                                     )['message']['content']
 
             # action = answer.split('Conclusion: ')[-1]
-            action = answer
+            print(action)
+            action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
             print('\n### New action vs expected move: \t{} vs {}'.format(action,right_answer))
             print('-----------------------------------')
 
