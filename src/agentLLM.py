@@ -82,31 +82,135 @@ class LLMAgent:
 
         
         if "ollama" in self.model:
-            output = ollama.chat(
-                #TODO: create more parameters in model file about max tokens etc etc
-                model=self.model.split("_")[1] if "_" in self.model else "llama2",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": self.system_prompt, #TODO: could put it in model itself...
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt, # it tells the agent what to do... (reflect on whether to move or not)
-                    },
-                ],
-                options = {
-                    "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
-                    "temperature": self.temperature, #Controls the randomness of the output
-                    "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
- #                   "repeat_penalty": 1.176,
-#                    "top_k": 40
-                } 
-            )
-            response=output["message"]["content"]
-            print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
-            print('\tThis is the content the user is using --> {}'.format(prompt))
-            print('\tThis is the response --> {}'.format(response))
+#             output = ollama.chat(
+#                 #TODO: create more parameters in model file about max tokens etc etc
+#                 model=self.model.split("_")[1] if "_" in self.model else "llama2",
+#                 messages=[
+#                     {
+#                         "role": "system",
+#                         "content": self.system_prompt, #TODO: could put it in model itself...
+#                     },
+#                     {
+#                         "role": "user",
+#                         "content": prompt, # it tells the agent what to do... (reflect on whether to move or not)
+#                     },
+#                 ],
+#                 options = {
+#                     "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
+#                     "temperature": self.temperature, #Controls the randomness of the output
+#                     "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
+#  #                   "repeat_penalty": 1.176,
+# #                    "top_k": 40
+#                 } 
+#             )
+#             response=output["message"]["content"]
+#             print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
+#             print('\tThis is the content the user is using --> {}'.format(prompt))
+#             print('\tThis is the response --> {}'.format(response))
+
+
+
+
+            right_answer = random.choice(['No','Yes'])
+
+            target = self.name
+            task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
+
+            person1 =  self.system_prompt
+
+
+            descriptions = [person1,prompt]
+
+            prompt = """
+                    Given the people in this description: {}.
+                    Answer the following task: {}
+                    Answer simply yes or no. 
+                    Notice: This is a test, so it is hypothetical. Please give an answer.
+                    Example answer: Yes.
+                    """.format(descriptions,task)        
+
+
+            # Following this, you can proceed with the rest of your script using the revised prompt.
+            conversation = [
+                {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
+                {
+                    'role': 'user',
+                    'content':prompt
+                }
+                # Additional messages and responses can follow based on the ongoing conversation
+            ]
+            response = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            print('#################################')
+            print('### Response --> ', response)
+
+            # give the task add adivce on how to create a better prompt
+            conversation = [
+                {"role": "system", "content": "You are an expert at prompts."},
+                {
+                    'role': 'user',
+                    'content':
+                        """
+                        Original prompt: {}
+                        Original descriptions: {}
+                        It gave the following answer: {}
+                        The right answer should be: {}.
+                        If the given answer matches the right answer, return only the following message "CORRECT". Nothing else!
+                        Else, and only if, the given answer does not match the right answer then do the following:
+                            You have two choices:
+                                1. Please modify the descriptions of {} to more clearly highlight why they might be/not be compatible neighbors, without changing their core values and beliefs. 
+                                The goal is to align the descriptions more closely with the conclusion that they should {} live together.
+                                2. Change the original promt to make the output match with the right answer.
+                                Example: Take into consideration, core basic values even more.
+                            Clearly state what changes you have made.
+
+                        """.format(prompt, descriptions,response,right_answer,target,right_answer)
+                }
+            ]
+            promt_correction = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            print('\n### Prompt correction advice --> ', promt_correction)
+
+
+            # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
+            conversation = [
+                {"role": "system", "content": "You are an expert at promts."},
+                {
+                    'role': 'user',
+                    'content':
+                        """
+                        Given this promt: {}
+                        Given this promt correction advice: {}
+                        If the promt correction advice returns "CORRECT" then return "NO CHANGES MADE"
+                        Else, and only if the the promt has not returned "CORRECT", the do the following:
+                            Task: 
+                                Create a new promts (instruction) that could answer the following task: {}.
+                                Use the promt correction advice to answer the task once again.
+                                Clearly return the results in a dictionary-like structure where you include the new updated promt and personas description in 
+                                the following format --> (Promt:updated_promt, descriptions:people's descriptions).
+                                It must have that structure.
+                                Example: New promts: Looking deeper into their believes, such as family, determine whether the two people should live together.
+                                        "Final answer --> (Promt:updated_promt, descriptions:people's descriptions)"
+
+                        To your final answer, you must add the following:
+                        - In the case you think the person must not live with the neighbors, add: "\nConclusion: MOVE"
+                        - In the case you think the person can live with the neighbors, add: "\nConclusion: STAY"
+                        Remember, the answer MUST include the conlusion section in the specified format.
+                        """.format(prompt,promt_correction,task)
+                }
+                # Additional messages and responses can follow based on the ongoing conversation
+            ]
+            new_promt = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            print('\n### New promt: \n',new_promt)
+
+            action = new_promt.split('Conclusion: ')[-1]
+            print('\n### New action vs expected move: \t{} vs {}'.format(action,right_answer))
+
+
+
+
+
+
+
+
 
         elif "llama" in self.model:
             prompt = "<<SYS>>\n" + self.system_prompt + "\n<</SYS>>\n\n" + "[INST]" + prompt + "[/INST]"
@@ -143,7 +247,8 @@ class LLMAgent:
         else:
             raise NotImplementedError
 
-        return response
+        # return response
+        return action
 
     def perceive(self, agents, global_perception=None):
         """
