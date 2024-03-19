@@ -165,7 +165,7 @@ class LLMAgent:
 
             # give the task add adivce on how to create a better prompt
             conversation = [
-                {"role": "system", "content": "You are an expert at prompts."},
+                {"role": "system", "content": "You are an expert at improving prompts."},
                 {
                     'role': 'user',
                     'content':
@@ -192,67 +192,47 @@ class LLMAgent:
 
             # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
             conversation = [
-                {"role": "system", "content": "You are an expert at promts."},
-                {
-                    'role': 'user',
-                    'content':
-                        """
-                        Given this promt: {}
-                        Given this promt correction advice: {}
-                        If the promt correction advice returns "CORRECT" then return "The person can live in the neighborhood."
-                        Else, and only if the the promt has not returned "CORRECT", the do the following:
-                            Task: 
-                                Create a new promts (instruction) that could answer the following task: {}.
-                                Use the promt correction advice to answer the task once again.
-                                Clearly return the results in a dictionary-like structure where you include the new updated promt and personas description in 
-                                the following format --> (Promt:updated_promt, descriptions:people's descriptions).
-                                It must have that structure.
-                                Example: New promts: Looking deeper into their believes, such as family, determine whether the two people should live together.
-                                        "Final answer --> (Promt:updated_promt, descriptions:people's descriptions)"
-                        """.format(init_instruction,promt_correction,task)
-                }
-                # Additional messages and responses can follow based on the ongoing conversation
-            ]
-
-            
-            new_promt = ollama.chat(model='llama2', messages=conversation)['message']['content']
-            print('\n### New promt: \n',new_promt)
-            
-            # given final putput, choose to stay or move
-            conversation = [
                 {
                     "role": "system",
-                    "content": "You are an expert at interpreting prompts. Think critically and follow the given criteria."
+                    "content": "You are an expert at interpreting prompts and following precise instructions."
                 },
                 {
                     'role': 'user',
                     'content':
                         """
-                        For each given prompt, respond only with "STAY" or "MOVE" based on this logic:
-                        - Respond with "STAY" if the person should continue living with their neighbors. Consider factors like compatibility, shared interests, and positive interactions.
-                        - Respond with "MOVE" if the person should not continue living with their neighbors. Consider factors like conflicts, safety concerns, and significantly different lifestyles.
-                        Only the words "STAY" or "MOVE" should be in your response.
+                        For each scenario, you will be given three elements:
+                        1. An initial prompt describing a situation: {}
+                        2. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
+                        3. A task related to the scenario, the following:
 
-                        Example: Given the scenario 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
-                        The appropriate response would be "MOVE" because the scenario highlights incompatible living situations.
+                            Your response should be based on the following logic:
+                            - If the prompt correction advice is 'CORRECT', respond with "STAY".
+                            - Otherwise, assess the initial prompt and the task:
+                                - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors, considering factors like compatibility, shared interests, and positive interactions.
+                                - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors, considering factors such as conflicts, safety concerns, and significant lifestyle differences.
 
-                        It is extremely important that your answer is only one word long, with simply "MOVE" or "STAY", otherwise the whole system breaks down.
-                        """
+                            Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
+
+                            Example:
+                            1. Initial prompt: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
+                            2. Prompt correction advice: [Any advice that is not 'CORRECT']
+                            3. Task: (task found above)
+                            Your response should be "MOVE" because the scenario indicates incompatible living situations.
+
+                            Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
+                        """.format(init_instruction,promt_correction)
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
-            
-            answer = ollama.chat(model='llama2', 
-                                    messages=conversation,
-                                    options = {
-                                        "num_predict": 20
-                                    }                                    
-                                    )['message']['content']
 
-            # action = answer.split('Conclusion: ')[-1]
-            print(action)
+            
+            answer = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            print('\n### New promt: \n',answer)
+            
+
             action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
-            print('\n### New action vs expected move: \t{} vs {}'.format(action,right_answer))
+            print('-------->',action)
+            print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
             print('-----------------------------------')
 
 
