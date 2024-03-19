@@ -9,7 +9,7 @@ import numpy as np
 import networkx as nx
 from itertools import product
 import ollama
-
+from collections import Counter
 
 
 import yaml
@@ -113,14 +113,24 @@ class LLMAgent:
 
             right_answer = random.choice(['No','Yes'])
 
+            # get the target's name and target's believes
             target = self.name
-            task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
-
             person1 =  self.system_prompt
+            task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
+            target_belief = person1.split('itself as')[1].split(',')[0].strip()
             
-            descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]
-            print('This is the neighborhood it is using: ',descriptions)
+            # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
+            believes = [i for i in prompt.split() if i in ['socialist','conservative']]
+            max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
+            most_common_belief = list(max_believes.values())[0].strip()
 
+            if most_common_belief == target_belief:
+                right_answer = 'Yes'
+            else:
+                right_answer = 'No'
+
+            # get the neighborhood: the person in question and the person it is being compared to
+            descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]            
             init_instruction = """
                     Given the people in this description: {}.
                     Answer the following task: {}
@@ -129,6 +139,12 @@ class LLMAgent:
                     Example answer: Yes.
                     """.format(descriptions,task)        
 
+            print('##################################################################')
+            print('\n### This is the neighborhood it is using: ',descriptions)
+            print('\ttarget_belief --> ',target_belief)
+            print('\tmost_common_belief --> ',most_common_belief)
+            print('\tright_answer --> ',right_answer)
+            print('\n{} can {} live in the neighborhood'.format(target,right_answer))
 
             # Following this, you can proceed with the rest of your script using the revised prompt.
             conversation = [
@@ -142,9 +158,7 @@ class LLMAgent:
             response = ollama.chat(model='llama2', 
                                    messages=conversation
                                    )['message']['content']
-            print('#################################')
-            print('{} {} can live in the neighborhood'.format(target,right_answer))
-            print('### Response --> ', response)
+            print('\n### Response --> ', response)
 
             # give the task add adivce on how to create a better prompt
             conversation = [
@@ -209,10 +223,10 @@ class LLMAgent:
                     'content':
                         """
                         Given this promt: {}
-                        Answer like this:
-                        - If you you believe person could live with neighbors, respond with: "\nConclusion: MOVE"
-                        - If you you believe person could not live with neighbors, respond with: "\nConclusion: STAY"
-                        Remember, the answer MUST include the conlusion section in the specified format.
+                        Answer only with STAY or MOVE. Like this:
+                        - If you you believe person could live with neighbors, respond with: "MOVE"
+                        - If you you believe person could not live with neighbors, respond with: "STAY"
+                        Remember, the answer MUST answer only STAY or MOVE.
                         """.format(new_promt)
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
@@ -225,7 +239,8 @@ class LLMAgent:
                                     }                                    
                                     )['message']['content']
 
-            action = answer.split('Conclusion: ')[-1]
+            # action = answer.split('Conclusion: ')[-1]
+            action = answer
             print('\n### New action vs expected move: \t{} vs {}'.format(action,right_answer))
             print('-----------------------------------')
 
