@@ -158,7 +158,7 @@ class LLMAgent:
             response = ollama.chat(model='llama2', 
                                    messages=conversation,
                                     options = {
-                                        "num_predict": 30
+                                        "num_predict": 50
                                     }                                      
                                    )['message']['content']
             print('\n### Response --> ', response)
@@ -200,36 +200,34 @@ class LLMAgent:
                     'role': 'user',
                     'content':
                         """
-                        For each scenario, you will be given three elements:
-                        1. An initial prompt describing a situation: {}
-                        2. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
-                        3. A task related to the scenario, the following:
+                        For each scenario, you will be given three elements (which are given here in the content as well):
+                        1. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
+                        2. A task related to the scenario, the following:
 
                             Your response should be based on the following logic:
                             - If the prompt correction advice is 'CORRECT', respond with "STAY".
                             - Otherwise, assess the initial prompt and the task:
-                                - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors, considering factors like compatibility, shared interests, and positive interactions.
-                                - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors, considering factors such as conflicts, safety concerns, and significant lifestyle differences.
+                                - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors.
+                                - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors.
 
                             Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
 
                             Example:
-                            1. Initial prompt: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
-                            2. Prompt correction advice: [Any advice that is not 'CORRECT']
-                            3. Task: (task found above)
+                            1. Prompt correction advice: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
+                            2. Task: (task found above)
                             Your response should be "MOVE" because the scenario indicates incompatible living situations.
 
                             Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
-                        """.format(init_instruction,promt_correction)
+                        """.format(promt_correction)
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
 
             
-            answer = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            answer = ollama.chat(model='llama2', messages=conversation)['message']['content']            
             print('\n### New promt: \n',answer)
-            
 
+            # get the action from the output
             action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
             print('-------->',action)
             print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
