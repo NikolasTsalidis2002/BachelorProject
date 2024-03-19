@@ -117,11 +117,11 @@ class LLMAgent:
             task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
 
             person1 =  self.system_prompt
+            
+            descriptions = [person1,prompt.split('However')[0]]
+            print('This is the neighborhood it is using: ',descriptions)
 
-
-            descriptions = [person1,prompt]
-
-            prompt = """
+            init_instruction = """
                     Given the people in this description: {}.
                     Answer the following task: {}
                     Answer simply yes or no. 
@@ -135,12 +135,18 @@ class LLMAgent:
                 {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
                 {
                     'role': 'user',
-                    'content':prompt
+                    'content':init_instruction
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
-            response = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            response = ollama.chat(model='llama2', 
+                                   messages=conversation,                                   
+                                    options = {
+                                        "num_predict": 4
+                                    }
+                                   )['message']['content']
             print('#################################')
+            print('{} {} can live in the neighborhood'.format(target,right_answer))
             print('### Response --> ', response)
 
             # give the task add adivce on how to create a better prompt
@@ -163,7 +169,7 @@ class LLMAgent:
                                 Example: Take into consideration, core basic values even more.
                             Clearly state what changes you have made.
 
-                        """.format(prompt, descriptions,response,right_answer,target,right_answer)
+                        """.format(init_instruction, descriptions,response,right_answer,target,right_answer)
                 }
             ]
             promt_correction = ollama.chat(model='llama2', messages=conversation)['message']['content']
@@ -189,27 +195,42 @@ class LLMAgent:
                                 It must have that structure.
                                 Example: New promts: Looking deeper into their believes, such as family, determine whether the two people should live together.
                                         "Final answer --> (Promt:updated_promt, descriptions:people's descriptions)"
-
-                        To your final answer, you must add the following:
-                        - In the case you think the person must not live with the neighbors, add: "\nConclusion: MOVE"
-                        - In the case you think the person can live with the neighbors, add: "\nConclusion: STAY"
-                        Remember, the answer MUST include the conlusion section in the specified format.
-                        """.format(prompt,promt_correction,task)
+                        """.format(init_instruction,promt_correction,task)
                 }
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
+
+            
             new_promt = ollama.chat(model='llama2', messages=conversation)['message']['content']
             print('\n### New promt: \n',new_promt)
+            
+            # given final putput, choose to stay or move
+            conversation = [
+                {"role": "system", "content": "You are an expert at promts."},
+                {
+                    'role': 'user',
+                    'content':
+                        """
+                        Given this promt: {}
+                        Answer like this:
+                        - In the case you think the person must not live with the neighbors, add: "\nConclusion: MOVE"
+                        - In the case you think the person can live with the neighbors, add: "\nConclusion: STAY"
+                        Remember, the answer MUST include the conlusion section in the specified format.
+                        """.format(new_promt)
+                }
+                # Additional messages and responses can follow based on the ongoing conversation
+            ]
+            
+            answer = ollama.chat(model='llama2', 
+                                    messages=conversation,
+                                    options = {
+                                        "num_predict": 3
+                                    }                                    
+                                    )['message']['content']
 
-            action = new_promt.split('Conclusion: ')[-1]
+            action = answer.split('Conclusion: ')[-1]
             print('\n### New action vs expected move: \t{} vs {}'.format(action,right_answer))
-
-
-
-
-
-
-
+            print('-----------------------------------')
 
 
         elif "llama" in self.model:
