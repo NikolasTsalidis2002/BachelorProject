@@ -118,7 +118,7 @@ class LLMAgent:
 
             person1 =  self.system_prompt
             
-            descriptions = [person1,prompt.split('However')[0]]
+            descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]
             print('This is the neighborhood it is using: ',descriptions)
 
             init_instruction = """
@@ -140,10 +140,7 @@ class LLMAgent:
                 # Additional messages and responses can follow based on the ongoing conversation
             ]
             response = ollama.chat(model='llama2', 
-                                   messages=conversation,                                   
-                                    options = {
-                                        "num_predict": 4
-                                    }
+                                   messages=conversation
                                    )['message']['content']
             print('#################################')
             print('{} {} can live in the neighborhood'.format(target,right_answer))
@@ -213,8 +210,8 @@ class LLMAgent:
                         """
                         Given this promt: {}
                         Answer like this:
-                        - In the case you think the person must not live with the neighbors, add: "\nConclusion: MOVE"
-                        - In the case you think the person can live with the neighbors, add: "\nConclusion: STAY"
+                        - If you you believe person could live with neighbors, respond with: "\nConclusion: MOVE"
+                        - If you you believe person could not live with neighbors, respond with: "\nConclusion: STAY"
                         Remember, the answer MUST include the conlusion section in the specified format.
                         """.format(new_promt)
                 }
