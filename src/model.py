@@ -231,12 +231,6 @@ class GridModel():
             print('\n\n##### i am checking the final_score --> ',final_score)
 
 
-            # if str(i) == '0':
-            #     for k,v in self.agents.items():
-            #         print(k,v)
-            #         if v.historics['state'] == [1]:
-            #             print('------------->',v.historics)
-
             conversation = [
                 {"role": "system", "content": "You are a helpful assistant. You are tasked with enhancing neighborhood harmony. You like giving very short and direct answers. Moreover, you are very strict in following every rule in the instructions."},
 
@@ -251,30 +245,46 @@ class GridModel():
 
                 Clearly state the newly updated version for the three points above. For example:
                 ####
-                - Socialist updated: You play the role of {"name"}... text
-                - Conservative updated: You play the role of {"name"}... text
-                - Task updated: text
+                Socialist updated: You play the role of name, ...
+                Conservative updated: You play the role of name, ...
+                Task updated: Reflect upon your beliefs and values, ...
                 ###
 
-                Clearly write the updated section in the "### ###" boundary above in the format above, (### Socialist updated, Conservative updated, Task updated###). This boundary part is extremely important because otherwise we cannot user answer.
+                Clearly write the updated section in the "### ###" boundary above in the format above, (###\nSocialist updated... \nConservative updated... \nTask updated###). This boundary part is extremely important because otherwise we cannot user answer.
                 """}
             ]
 
             response = ollama.chat(model='llama2:13b', 
                                 messages=conversation)['message']['content']
             response = response.replace("### ###",'')
-            right_format = len(response.split('###')) > 2
-            if not right_format:
+            print('\n### Response --> ', response)
+
+            try:
+                socialist = response.split('Socialist updated:')[1].split('Conservative')[0].strip()
+                conservative = response.split('Conservative updated:')[1].split('Task')[0].strip()
+                task = response.split('Task updated:')[1].strip()                
+            except:                
                 conversation[1]['content'] += f". You made this response before: {response}. It does not have a good format. Follow my instructions please."
                 response = ollama.chat(model='llama2:13b', 
                                     messages=conversation)['message']['content']     
-
-            socialist = response.split('Socialist updated:')[1].split('Conservative')[0].strip()
-            conservative = response.split('Conservative updated:')[1].split('Task')[0].strip()
-            task = response.split('Task updated:')[1].strip()
+                
+                socialist = response.split('Socialist updated:')[1].split('Conservative')[0].strip()
+                conservative = response.split('Conservative updated:')[1].split('Task')[0].strip()
+                task = response.split('Task updated:')[1].strip()
             
             
-            print('\n### Response --> ', response)            
+            # ["socialist", "conservative"]
+            if str(i) == '0':
+                for k,v in self.agents.items():
+                    if v.historics['state'] == [1]:                        
+                        v.historics['prompt'] = conservative.replace('name',v.name)
+                        print('hellooooo ------------->',v.historics)
+                    if v.historics['state'] == [0]:                                                                    
+                        v.historics['prompt'] = socialist.replace('name',v.name)
+                        print('hellooooo ------------->',v.historics)
+                    print('New promts for person --> ',v.historics['prompt'])
+                v.PROMPTS['update'] = task                 
+            
             print('\n###End of response ')
 
 

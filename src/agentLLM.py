@@ -104,9 +104,9 @@ class LLMAgent:
                 } 
             )
             response=output["message"]["content"]
-            print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
-            print('\tThis is the content the user is using --> {}'.format(prompt))
-            print('\tThis is the response --> {}'.format(response))
+            # print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
+            # print('\tThis is the content the user is using --> {}'.format(prompt))
+            # print('\tThis is the response --> {}'.format(response))
 
 
 
