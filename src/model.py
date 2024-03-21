@@ -7,6 +7,9 @@ from src.visualize import generate_gif_from_data_grid, plot_grid, plot_base
 from src.utils.utils import json_serial
 import time
 import yaml
+import ollama
+from src.prompts.persona import PERSONAS
+from src.prompts.base import META_PROMPTS
 
 
 
@@ -145,7 +148,7 @@ class GridModel():
                 # for llm is going to return a dictionary with local and global keys (global is ignored for now. Local is going to have as a value the following: # Your neighborhood is composed of the following: James which is conservative...)
                 # 2--- action agent
                 #if_action either 1 or 0 (move or not)
-                #new_position will be set to the empty position that has a better satisfaction
+                #new_position will be set to the empty position that has a better satisfaction                
                 if_action, new_position=agent.update(perception, rated_positions=possible_positions, **kwargs)
 
                 count+=if_action #counts the number of updates (agents that do move)
@@ -211,7 +214,9 @@ class GridModel():
         data[0] = {str(key): val.state for key, val in self.agents.items()}
 
         # 1-- Run the simulation for n_iterations
-        for i in range(n_iterations):
+        for i in range(n_iterations):       
+            if i == 0:
+                print('\n\n\n---------------->',PERSONAS['socialist'],PERSONAS['conservative'],'\nInstructions: ',META_PROMPTS['update'])
             ratio=self.update() #the ratio of agents that have moved
             ratio_actions.append(ratio)
             score_population.append(self.evaluate_population()) #appends the current score of the grid
@@ -223,6 +228,62 @@ class GridModel():
                 data[i] = {str(key): val.state for key, val in self.agents.items()}
             
             final_score=round(self.evaluate_population(),3)
+            print('\n\n##### i am checking the final_score --> ',final_score)
+
+
+            # if str(i) == '0':
+            #     for k,v in self.agents.items():
+            #         print(k,v)
+            #         if v.historics['state'] == [1]:
+            #             print('------------->',v.historics)
+
+            conversation = [
+                {"role": "system", "content": "You are a helpful assistant. You are tasked with enhancing neighborhood harmony. You like giving very short and direct answers. Moreover, you are very strict in following every rule in the instructions."},
+
+                {'role': 'user',
+                'content': f"""
+                We have a social segregation score of {final_score}, but we aim to achieve {0.7}. 
+                Suggest updates to socialists and conservatives or the task description:
+
+                - Current socialist description: {PERSONAS['socialist']}
+                - Current conservative description: {PERSONAS['conservative']}
+                - Current task description: {META_PROMPTS['update']}.
+
+                Clearly state the newly updated version for the three points above. For example:
+                ####
+                - Socialist updated: You play the role of {"name"}... text
+                - Conservative updated: You play the role of {"name"}... text
+                - Task updated: text
+                ###
+
+                Clearly write the updated section in the "### ###" boundary above in the format above, (### Socialist updated, Conservative updated, Task updated###). This boundary part is extremely important because otherwise we cannot user answer.
+                """}
+            ]
+
+            response = ollama.chat(model='llama2:13b', 
+                                messages=conversation)['message']['content']
+            response = response.replace("### ###",'')
+            right_format = len(response.split('###')) > 2
+            if not right_format:
+                conversation[1]['content'] += f". You made this response before: {response}. It does not have a good format. Follow my instructions please."
+                response = ollama.chat(model='llama2:13b', 
+                                    messages=conversation)['message']['content']     
+
+            socialist = response.split('Socialist updated:')[1].split('Conservative')[0].strip()
+            conservative = response.split('Conservative updated:')[1].split('Task')[0].strip()
+            task = response.split('Task updated:')[1].strip()
+            
+            
+            print('\n### Response --> ', response)            
+            print('\n###End of response ')
+
+
+
+
+
+
+
+
 
             if ratio == 0 and self.early_stopping: #then stop
                 print("Converged, early stopping at {} iterations".format(i))
@@ -230,7 +291,6 @@ class GridModel():
 
         # 2--- Plot the final state
         if not self.config["dev"]:
-
             #create folder if not exist
             if not os.path.exists("outputs/"+self.id):
                 os.makedirs("outputs/"+self.id)

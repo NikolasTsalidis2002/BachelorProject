@@ -66,7 +66,6 @@ class SchellingLLMAgent(GridLLMAgent):
         self.score = (
             1 if len(neighbors) == 0 else sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
         ) # is the ratio of neighbors that agree in persona with the agent at the time 
-
         return perception
 
     def update(self, perception, rated_positions=None):

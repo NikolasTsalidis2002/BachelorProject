@@ -82,156 +82,156 @@ class LLMAgent:
 
         
         if "ollama" in self.model:
-#             output = ollama.chat(
-#                 #TODO: create more parameters in model file about max tokens etc etc
-#                 model=self.model.split("_")[1] if "_" in self.model else "llama2",
-#                 messages=[
-#                     {
-#                         "role": "system",
-#                         "content": self.system_prompt, #TODO: could put it in model itself...
-#                     },
-#                     {
-#                         "role": "user",
-#                         "content": prompt, # it tells the agent what to do... (reflect on whether to move or not)
-#                     },
-#                 ],
-#                 options = {
-#                     "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
-#                     "temperature": self.temperature, #Controls the randomness of the output
-#                     "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
-#  #                   "repeat_penalty": 1.176,
-# #                    "top_k": 40
-#                 } 
-#             )
-#             response=output["message"]["content"]
-#             print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
-#             print('\tThis is the content the user is using --> {}'.format(prompt))
-#             print('\tThis is the response --> {}'.format(response))
+            output = ollama.chat(
+                #TODO: create more parameters in model file about max tokens etc etc
+                model=self.model.split("_")[1] if "_" in self.model else "llama2",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self.system_prompt, #TODO: could put it in model itself...
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt, # it tells the agent what to do... (reflect on whether to move or not)
+                    },
+                ],
+                options = {
+                    "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
+                    "temperature": self.temperature, #Controls the randomness of the output
+                    "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
+ #                   "repeat_penalty": 1.176,
+#                    "top_k": 40
+                } 
+            )
+            response=output["message"]["content"]
+            print('\n\tThis is the content the system is using --> {}'.format(self.system_prompt))
+            print('\tThis is the content the user is using --> {}'.format(prompt))
+            print('\tThis is the response --> {}'.format(response))
 
 
 
 
-            right_answer = random.choice(['No','Yes'])
+            # right_answer = random.choice(['No','Yes'])
 
-            # get the target's name and target's believes
-            target = self.name
-            person1 =  self.system_prompt
-            task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
-            target_belief = person1.split('itself as')[1].split(',')[0].strip()
+            # # get the target's name and target's believes
+            # target = self.name
+            # person1 =  self.system_prompt
+            # task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
+            # target_belief = person1.split('itself as')[1].split(',')[0].strip()
             
-            # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
-            believes = [i for i in prompt.split() if i in ['socialist','conservative']]
-            max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
-            most_common_belief = list(max_believes.values())[0].strip()
+            # # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
+            # believes = [i for i in prompt.split() if i in ['socialist','conservative']]
+            # max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
+            # most_common_belief = list(max_believes.values())[0].strip()
 
-            if most_common_belief == target_belief:
-                right_answer = 'Yes'
-            else:
-                right_answer = 'No'
+            # if most_common_belief == target_belief:
+            #     right_answer = 'Yes'
+            # else:
+            #     right_answer = 'No'
 
-            # get the neighborhood: the person in question and the person it is being compared to
-            descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]            
-            init_instruction = """
-                    Given the people in this description: {}.
-                    Answer the following task: {}
-                    Answer simply yes or no. 
-                    Notice: This is a test, so it is hypothetical. Please give an answer.
-                    Example answer: Yes.
-                    """.format(descriptions,task)        
+            # # get the neighborhood: the person in question and the person it is being compared to
+            # descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]            
+            # init_instruction = """
+            #         Given the people in this description: {}.
+            #         Answer the following task: {}
+            #         Answer simply yes or no. 
+            #         Notice: This is a test, so it is hypothetical. Please give an answer.
+            #         Example answer: Yes.
+            #         """.format(descriptions,task)        
 
-            print('##################################################################')
-            print('\n### This is the neighborhood it is using: ',descriptions)
-            print('\ttarget_belief --> ',target_belief)
-            print('\tmost_common_belief --> ',most_common_belief)
-            print('\tright_answer --> ',right_answer)
-            print('\n\t{} can {} live in the neighborhood'.format(target,right_answer))
+            # print('##################################################################')
+            # print('\n### This is the neighborhood it is using: ',descriptions)
+            # print('\ttarget_belief --> ',target_belief)
+            # print('\tmost_common_belief --> ',most_common_belief)
+            # print('\tright_answer --> ',right_answer)
+            # print('\n\t{} can {} live in the neighborhood'.format(target,right_answer))
 
-            # Following this, you can proceed with the rest of your script using the revised prompt.
-            conversation = [
-                {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
-                {
-                    'role': 'user',
-                    'content':init_instruction
-                }
-                # Additional messages and responses can follow based on the ongoing conversation
-            ]
-            response = ollama.chat(model='llama2', 
-                                   messages=conversation,
-                                    options = {
-                                        "num_predict": 50
-                                    }                                      
-                                   )['message']['content']
-            print('\n### Response --> ', response)
+            # # Following this, you can proceed with the rest of your script using the revised prompt.
+            # conversation = [
+            #     {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
+            #     {
+            #         'role': 'user',
+            #         'content':init_instruction
+            #     }
+            #     # Additional messages and responses can follow based on the ongoing conversation
+            # ]
+            # response = ollama.chat(model='llama2', 
+            #                        messages=conversation,
+            #                         options = {
+            #                             "num_predict": 50
+            #                         }                                      
+            #                        )['message']['content']
+            # print('\n### Response --> ', response)
 
-            # give the task add adivce on how to create a better prompt
-            conversation = [
-                {"role": "system", "content": "You are an expert at improving prompts."},
-                {
-                    'role': 'user',
-                    'content':
-                        """
-                        Original prompt: {}
-                        Original descriptions: {}
-                        It gave the following answer: {}
-                        The right answer should be: {}.
-                        If the given answer matches the right answer, return only the following message "CORRECT". Nothing else!
-                        Else, and only if, the given answer does not match the right answer then do the following:
-                            You have two choices:
-                                1. Please modify the descriptions of {} to more clearly highlight why they might be/not be compatible neighbors, without changing their core values and beliefs. 
-                                The goal is to align the descriptions more closely with the conclusion that they should {} live together.
-                                2. Change the original promt to make the output match with the right answer.
-                                Example: Take into consideration, core basic values even more.
-                            Clearly state what changes you have made.
+            # # give the task add adivce on how to create a better prompt
+            # conversation = [
+            #     {"role": "system", "content": "You are an expert at improving prompts."},
+            #     {
+            #         'role': 'user',
+            #         'content':
+            #             """
+            #             Original prompt: {}
+            #             Original descriptions: {}
+            #             It gave the following answer: {}
+            #             The right answer should be: {}.
+            #             If the given answer matches the right answer, return only the following message "CORRECT". Nothing else!
+            #             Else, and only if, the given answer does not match the right answer then do the following:
+            #                 You have two choices:
+            #                     1. Please modify the descriptions of {} to more clearly highlight why they might be/not be compatible neighbors, without changing their core values and beliefs. 
+            #                     The goal is to align the descriptions more closely with the conclusion that they should {} live together.
+            #                     2. Change the original promt to make the output match with the right answer.
+            #                     Example: Take into consideration, core basic values even more.
+            #                 Clearly state what changes you have made.
 
-                        """.format(init_instruction, descriptions,response,right_answer,target,right_answer)
-                }
-            ]
-            promt_correction = ollama.chat(model='llama2', messages=conversation)['message']['content']
-            print('\n### Prompt correction advice --> ', promt_correction)
+            #             """.format(init_instruction, descriptions,response,right_answer,target,right_answer)
+            #     }
+            # ]
+            # promt_correction = ollama.chat(model='llama2', messages=conversation)['message']['content']
+            # print('\n### Prompt correction advice --> ', promt_correction)
 
 
-            # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
-            conversation = [
-                {
-                    "role": "system",
-                    "content": "You are an expert at interpreting prompts and following precise instructions."
-                },
-                {
-                    'role': 'user',
-                    'content':
-                        """
-                        For each scenario, you will be given three elements (which are given here in the content as well):
-                        1. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
-                        2. A task related to the scenario, the following:
+            # # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
+            # conversation = [
+            #     {
+            #         "role": "system",
+            #         "content": "You are an expert at interpreting prompts and following precise instructions."
+            #     },
+            #     {
+            #         'role': 'user',
+            #         'content':
+            #             """
+            #             For each scenario, you will be given three elements (which are given here in the content as well):
+            #             1. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
+            #             2. A task related to the scenario, the following:
 
-                            Your response should be based on the following logic:
-                            - If the prompt correction advice is 'CORRECT', respond with "STAY".
-                            - Otherwise, assess the initial prompt and the task:
-                                - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors.
-                                - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors.
+            #                 Your response should be based on the following logic:
+            #                 - If the prompt correction advice is 'CORRECT', respond with "STAY".
+            #                 - Otherwise, assess the initial prompt and the task:
+            #                     - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors.
+            #                     - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors.
 
-                            Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
+            #                 Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
 
-                            Example:
-                            1. Prompt correction advice: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
-                            2. Task: (task found above)
-                            Your response should be "MOVE" because the scenario indicates incompatible living situations.
+            #                 Example:
+            #                 1. Prompt correction advice: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
+            #                 2. Task: (task found above)
+            #                 Your response should be "MOVE" because the scenario indicates incompatible living situations.
 
-                            Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
-                        """.format(promt_correction)
-                }
-                # Additional messages and responses can follow based on the ongoing conversation
-            ]
+            #                 Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
+            #             """.format(promt_correction)
+            #     }
+            #     # Additional messages and responses can follow based on the ongoing conversation
+            # ]
 
             
-            answer = ollama.chat(model='llama2', messages=conversation)['message']['content']            
-            print('\n### New promt: \n',answer)
+            # answer = ollama.chat(model='llama2', messages=conversation)['message']['content']            
+            # print('\n### New promt: \n',answer)
 
-            # get the action from the output
-            action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
-            print('-------->',action)
-            print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
-            print('-----------------------------------')
+            # # get the action from the output
+            # action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
+            # print('-------->',action)
+            # print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
+            # print('-----------------------------------')
 
 
         elif "llama" in self.model:
@@ -269,8 +269,8 @@ class LLMAgent:
         else:
             raise NotImplementedError
 
-        # return response
-        return action
+        return response
+        # return action
 
     def perceive(self, agents, global_perception=None):
         """
