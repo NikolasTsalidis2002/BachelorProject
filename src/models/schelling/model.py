@@ -34,13 +34,15 @@ class SchellingLLMModel(GridModel):
         # create positions in grid
         ranges = [range(dimension) for dimension in self.dimensions]
         self.positions = list(itertools.product(*ranges))
+        random.seed(42)
         random.shuffle(self.positions)
 
         # number positions by types and some slots left empty
         num_agents_by_type = [int(ratio * len(self.positions)) for ratio in self.ratio]
         num_agents = sum(num_agents_by_type)
 
-        states = [i for i in range(len(self.personas)) for j in range(num_agents_by_type[i])]
+        states = [i for i in range(len(self.personas)) for j in range(num_agents_by_type[i])]        
+        random.seed(30)
         random.shuffle(states)
 
         #self.beliefs = self.initialise_beliefs_population(num_agents_by_type, bias, self.config["parameters_llm"]["polarization"])

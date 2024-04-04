@@ -215,22 +215,31 @@ class GridModel():
 
         # 1-- Run the simulation for n_iterations
         for i in range(n_iterations):       
-            if i == 0:
-                print('\n\n\n---------------->',PERSONAS['socialist'],PERSONAS['conservative'],'\nInstructions: ',META_PROMPTS['update'])
+            if int(i) in [0,1]:                
+                print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
+            
+            print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
             ratio=self.update() #the ratio of agents that have moved
+            print('\n\t### Ended the process of deciding on whether to stay or move for all agents ###')
             ratio_actions.append(ratio)
             score_population.append(self.evaluate_population()) #appends the current score of the grid
-            print("Step " + str(i) + " : " + str(ratio) + " % updates")
+            
+            print("\t\t% of agents updated in Step " + str(i) + " : " + str(ratio) + " % updates")
 
             # Save data every X steps
             if i % self.config["save_every"] == 0:
                 #print("TP Saving iteration " + str(i))
                 data[i] = {str(key): val.state for key, val in self.agents.items()}
             
+            print('\n\n### Checking population happiness level ###')
             final_score=round(self.evaluate_population(),3)
-            print('\n\n##### i am checking the final_score --> ',final_score)
+            print('\tFinal_score --> ',final_score)
 
-            if float(final_score) < 1:
+
+            print('\n\n### Starting process of prompt modification if needed ###\n')
+
+            if float(final_score) < 1: # if we want to execute the prompt breeder
+            # if float(final_score) > 1: # if we do not want to execute the promt breeder
                 print('\nFinal score below 1.0%. Going to change the prompts\n\n')
                 conversation = [
                     {"role": "system", "content": "You are a helpful assistant. You are tasked with enhancing neighborhood harmony. You like giving very short and direct answers. Moreover, you are very strict in following every rule in the instructions."},
@@ -274,25 +283,35 @@ class GridModel():
                     task = response.split('Task updated:')[1].strip()
                 
                 
-                # ["socialist", "conservative"]
-                if str(i) == '0':
-                    for k,v in self.agents.items():
-                        if v.historics['state'] == [1]:                        
-                            v.historics['prompt'] = v.historics['prompt'].replace('Name','name')
-                            v.historics['prompt'] = conservative.replace('name',v.name)
-                            print('hellooooo ------------->',v.historics)
-                        if v.historics['state'] == [0]:                                                                    
-                            v.historics['prompt'] = v.historics['prompt'].replace('Name','name')
-                            v.historics['prompt'] = socialist.replace('name',v.name)                        
-                            print('hellooooo ------------->',v.historics)
-                        print('\nNew promts for person --> ',v.historics['prompt'])
-                    v.PROMPTS['update'] = task                 
+                # update the socialist, conservative and update descriptions
+                PERSONAS['socialist'] = socialist
+                PERSONAS['conservative'] = conservative
+                META_PROMPTS['update'] += task
+                # print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
+                # # ["socialist", "conservative"]
+                # if str(i) == '0':
+                #     for k,v in self.agents.items():
+                #         print(f"""Before --> historics: {v.historics['prompt']} & {v.historics['state']}\tPROMPTS: {v.PROMPTS}""")
+                #         if v.historics['state'] == [1]:                        
+                #             v.historics['prompt'] = v.historics['prompt'].replace('Name','name')
+                #             v.historics['prompt'] = conservative.replace('name',v.name)
+                #             # print('hellooooo ------------->',v.historics)
+                #         if v.historics['state'] == [0]:                                                                    
+                #             v.historics['prompt'] = v.historics['prompt'].replace('Name','name')
+                #             v.historics['prompt'] = socialist.replace('name',v.name)                        
+                #             # print('hellooooo ------------->',v.historics)
+                #         # print('\nNew promts for person --> ',v.historics['prompt'])
+                #         print(f"""After --> historics: {v.historics['prompt']} & {v.historics['state']}\tPROMPTS: {v.PROMPTS}""")
+                #     v.PROMPTS['update'] = task                 
 
-                    print('\nNew task description --> ',v.PROMPTS['update'])
+                #     print('\nNew task description --> ',v.PROMPTS['update'])
                 
-                print('\n###End of response ')
+                # print('\n###End of response ')
 
-
+            else:
+                print('\nFinal score equals 1.0%. No need to change the prompts\n\n')
+            
+            print('\n\t### Finished process of prompt modification ###\n')
 
 
 
