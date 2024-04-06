@@ -265,8 +265,7 @@ class GridModel():
 
         # 1-- Run the simulation for n_iterations
         for i in range(n_iterations):       
-            if int(i) in [0,1]:                
-                print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
+            print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
             ratio=self.update() #the ratio of agents that have moved
@@ -286,8 +285,8 @@ class GridModel():
             print(f'\tFinal_score --> {final_score}%')            
 
             print('\n\n### Starting process of prompt modification if needed ###')
-            if float(final_score) < 1: # if we want to execute the prompt breeder
-            # if float(final_score) > 1: # if we do not want to execute the promt breeder
+            # if float(final_score) < 1: # if we want to execute the prompt breeder
+            if float(final_score) > 1: # if we do not want to execute the promt breeder
                 print('\tFinal score below 1.0%. Going to change the prompts\n\n')
                     
                 socialist,conservative,task,conversation = self.updating_prompts().values()
@@ -302,9 +301,10 @@ class GridModel():
                     counter += 1
                 
                 # update the socialist, conservative and update descriptions
-                PERSONAS['socialist'] = socialist+"Your ideal neighborhood is a bastion of socialist thought"
-                PERSONAS['conservative'] = conservative+"Your ideal neighborhood is a bastion of conservative thought"
-                META_PROMPTS['update'] += task  # let us not change the instructions just yet       
+                PERSONAS['socialist'] = "Your ideal neighborhood is a bastion of socialist thought"+socialist
+                PERSONAS['conservative'] = "Your ideal neighborhood is a bastion of conservative thought"+conservative
+                increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood.'
+                META_PROMPTS['update'] += task+increase_strictness  # let us not change the instructions just yet       
 
             else:
                 print('\tFinal score equals 1.0%. No need to change the prompts\n')

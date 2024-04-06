@@ -38,6 +38,7 @@ def run_llm_experiment(config, module):
 
     print("***Run LLM model ***")
     model = ModelClass(config, id=expe_id)
+    # print('Cause an error on on purpose in main.py so we can see the states and positions ',[][0])
     score = model.run()
     model.save_historics(folder + "historics.json")
 

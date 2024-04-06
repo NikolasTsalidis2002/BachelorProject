@@ -24,6 +24,9 @@ class SchellingLLMAgent(LLMAgent):
         super().__init__(config, state=state, persona=persona, client=client)
         self.message = self.get_state_as_text()
 
+        print('state --> ',state)
+        print('position --> ',position)
+
         # setup meta prompts
         self.PROMPTS = META_PROMPTS
         self.position = tuple(position)

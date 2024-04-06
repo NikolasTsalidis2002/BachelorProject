@@ -30,10 +30,11 @@ class SchellingLLMModel(GridModel):
         
         n_classes = len(self.personas)
 
+        random.seed(42) # set a seed so we ensure to get the same initial population all the time
+
         # create positions in grid
         ranges = [range(dimension) for dimension in self.dimensions]
-        self.positions = list(itertools.product(*ranges))
-        random.seed(42)
+        self.positions = list(itertools.product(*ranges))        
         random.shuffle(self.positions)
 
         # number positions by types and some slots left empty
@@ -41,7 +42,6 @@ class SchellingLLMModel(GridModel):
         num_agents = sum(num_agents_by_type)
 
         states = [i for i in range(len(self.personas)) for j in range(num_agents_by_type[i])]        
-        random.seed(30)
         random.shuffle(states)
 
         #self.beliefs = self.initialise_beliefs_population(num_agents_by_type, bias, self.config["parameters_llm"]["polarization"])
@@ -49,6 +49,10 @@ class SchellingLLMModel(GridModel):
             # self.client is initialised in GirdModel -> and the client is OpenAi in the case of wanting to use it
             self.agents[self.positions[n]] = SchellingLLMAgent(self.config, state=states[n], position=self.positions[n], client=self.client) 
         
+        print('#########')
+        print('states --> ',states)
+        print('positions --> ',self.positions)
+        print('agents --> ',{k:(v.state,v.position) for k,v in self.agents.items()})
 
     def check_similarity_state(self, state1, state2):
         return state1==state2
