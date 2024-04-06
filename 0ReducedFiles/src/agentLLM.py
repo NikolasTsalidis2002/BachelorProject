@@ -2,8 +2,8 @@ import random
 import time
 
 # from llama_cpp import Llama #https://llama-cpp-python.readthedocs.io/en/latest/api-reference
-from src.prompts.persona import PERSONAS, NAMES
-from src.prompts.base import META_PROMPTS
+from src.schelling.prompts.persona import PERSONAS, NAMES
+from src.schelling.prompts.meta import META_PROMPTS
 import time
 import numpy as np
 import networkx as nx
@@ -21,7 +21,7 @@ import yaml
 
 class LLMAgent:
 
-    def __init__(self, config, state=None, message=None, persona="", name=None, extra_prompt="", client=None):
+    def __init__(self, config, state:int, message=None, persona="", name=None, extra_prompt="", client=None):
         # this class is initiated in agentLLM.py (src -> GridLLMAgent.__init__())
         """
         LLM Agent
@@ -29,6 +29,10 @@ class LLMAgent:
         The persona prompt (e.g. system_prompt) is retrieved from this id.
 
         """
+
+        # create attributes for the features in the parameters_llm section of the config file
+        for key, val in config["parameters_llm"].items(): 
+            setattr(self, key, val)                
 
         self.name = random.choice(NAMES) if name is None else name # the name is going to be random coming from the list of naames in src.prompts.persona
         self.state = state
@@ -272,100 +276,6 @@ class LLMAgent:
         return response
         # return action
 
-    def perceive(self, agents, global_perception=None):
-        """
-        Perception by default is made by: one own state, some global perception and some local perceptions ("neighbor messages/states")
-        """
-
-        prompts = self.PROMPTS["perception"]
-
-        perception = {}
-
-        if "self" in prompts.keys():
-            perception["self"] = prompts["self"].format(name=self.name, state=self.get_state_as_text())
-
-        neighbors = self.get_neighbors(agents, k=self.config["parameters"]["perception_radius"])
-        perception["local"] = ""
-        if len(neighbors) > 0:
-            shared = ""
-            for n in neighbors:
-                if n.message is not None and n.message != "":
-                    shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
-            if shared != "":
-                perception["local"] = prompts["local"].format(local_perception=shared)
-
-        perception["global"] = ""
-        if (global_perception is not None) and "global" in prompts.keys():
-            perception["global"] = prompts["global"].format(global_perception=global_perception)
-
-        return perception
-
-    def update(self, perception, **kwargs):
-        """
-        (1) May decide to update its state given the context.
-        Here, position is not updated (static agent), but cf. schelling model to see an example of update of position
-
-        (2) May decide to transmit a message to its neighbors.
-
-        Return updated (1 or 0) and transmission (1 or 0)
-        """
-        prompts = self.PROMPTS["update"]
-
-        # Form context
-        context = self.get_context_from_perception(perception)
-
-        ##### 1-- UPDATE STATE
-        prompt = context + prompts.format(name=self.name)
-        response = self.ask_llm(prompt)  # , max_tokens=100
-        
-        print(f"TP UPDATE response of {self.name}:", response)
-        if "[CHANGE]" in response:
-            self.state = self.extract_state_from_text(response.split("[CHANGE]")[1])
-
-        # UPDATE ITS MEMORY
-        # self.update_recent_memory(perception)
-        # self.update_external_memory(perception)
-
-        ###### 2-- TRANSMISSION MESSAGE
-        time.sleep(1)  # TODO: temp because of gpt limit
-        transmission = self.transmit(context)
-
-        # 3-- Save historical states
-        self.historics["state"].append(self.state)
-        self.historics["message"].append(self.message)
-
-        return bool("[CHANGE]" in response), transmission
-
-    def transmit(self, context, **kwargs):
-        """
-        May decide to transmit a message to its neighbor.
-        Here, done by updating the message attribute of the agent.
-        """
-        prompts = self.PROMPTS["transmit"]
-
-        if self.message != "":
-            previous_message = "PREVIOUS MESSAGE TRANSMITTED:" + self.message
-            prompt = context + previous_message + prompts.format(name=self.name)
-        else:
-            prompt = context + prompts.format(name=self.name)
-
-        response = self.ask_llm(prompt)  # max_tokens=100
-        print(f"TP TRANSMIT response of {self.name}:", response)
-
-        if "NONE" in response:
-            self.message = ""
-            return 0
-        else:
-            if "[SHARE]" in response:
-                self.message = response.split("[SHARE]")[1]
-            elif "SHARE" in response:
-                self.message = response.split("SHARE")[1]
-            else:
-                print(f"ISSUE TRANSMIT reponse has not SHAREif {response}")
-                self.message = ""
-
-            return 1
-
     def get_context_from_perception(self, perception):
         """
         Return the context from the perception
@@ -385,92 +295,3 @@ class LLMAgent:
         """
         return str(self.state)
 
-    def extract_state_from_text(self, text):
-        """
-        Return the state from a textual form
-        """
-        return text
-
-    def forget(self):
-        """
-        By default, forget randomly erase an element from the memory with a certain probability stated in config
-        """
-        if self.forgetting_rate > 0:
-            if len(self.memory) > 0:
-                if np.random.rand() < self.forgetting_rate:
-                    self.memory.pop(np.random.randint(len(self.memory)))
-
-    def update_external_memory(self, memory):
-        """
-        By default, save the memory in the external memory and forget one element
-        """
-        self.memory.append(memory)
-        self.forget()
-
-    def update_recent_memory(self, memory):
-        """
-        Update the recent memory list with the most recent memory.
-        Ensures that the list is capped at m items, removing the oldest memory if necessary.
-        """
-        if len(self.recent_memory) >= self.memory_buffer_size:
-            self.recent_memory.pop(0)  # Remove the oldest memory
-        self.recent_memory.append(memory)  # Add the new memory
-
-
-##########################################
-#### LLM Grid Agent ####
-##########################################
-
-
-class GridLLMAgent(LLMAgent): 
-    # NOTE LLMAgent first means that the methods of LLMAgent will be used first if there is a conflict
-
-    def __init__(self, config, position=None, state=None, message=None, persona="", extra_prompt="", client=None):
-        # this class is initiated in agentLLM.py (src -> SchellingLLMAgent.__init__())
-        """
-        LLM Agent for grid model
-        """
-        # to the class GridLLMAgent(LLMAgent), add attributes given in config["parameters_llm"] (among them llm_name)
-        for key, val in config["parameters_llm"].items(): 
-            setattr(self, key, val)
-
-        self.position = tuple(position)  # Ensure position is a tuple for immutability
-
-        # LLM AGENT CONSTRUCTOR
-        LLMAgent.__init__(self, config, state=state, persona=persona, message=message, extra_prompt=extra_prompt, client=client)
-
-    def get_neighbors(self, agents, k=1):
-        offsets = list(product(range(-k, k + 1), repeat=len(self.position)))
-        offsets.remove((0,) * len(self.position))
-        neighbors = []
-        for offset in offsets:
-            neighbor_pos = tuple(self.position[i] + offset[i] for i in range(len(self.position)))
-            if neighbor_pos in agents:
-                neighbors.append(agents[neighbor_pos])
-        return neighbors
-
-
-##########################################
-#### LLM Grid Agent ####
-##########################################
-
-
-class NetLLMAgent(LLMAgent):
-    # NOTE LLMAgent first means that the methods of LLMAgent will be used first if there is a conflict
-
-    def __init__(self, config, network=None, state=None, message=None, persona="", extra_prompt="", client=None):
-        """
-        LLM Agent for grid model
-        """
-        for key, val in config["parameters_llm"].items():
-            setattr(self, key, val)
-
-        self.network = network
-
-        # LLM AGENT CONSTRUCTOR
-        LLMAgent.__init__(self, config, state=state, persona=persona, message=message, extra_prompt=extra_prompt, client=client)
-
-    def get_neighbors(self, network, k=1):
-        all_neighbors = nx.single_source_shortest_path_length(network, self.id, cutoff=k)
-        all_neighbors.pop(self.id, None)
-        return list(all_neighbors.keys())

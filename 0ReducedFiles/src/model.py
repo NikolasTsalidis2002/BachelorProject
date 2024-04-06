@@ -7,14 +7,14 @@ from src.utils.utils import json_serial
 import time
 import yaml
 import ollama
-from src.prompts.persona import PERSONAS
-from src.prompts.base import META_PROMPTS
+from src.schelling.prompts.persona import PERSONAS
+from src.schelling.prompts.meta import META_PROMPTS
 
 
 
 class GridModel():
     
-    def __init__(self, config, id="", with_llm=False, title="", path="", dynamic=True):
+    def __init__(self, config, id="", with_llm=True, title="", path="", dynamic=True):
         
         self.id = id
         self.config=config
@@ -34,9 +34,6 @@ class GridModel():
             for key, val in config["parameters_llm"].items():
                 # to the class GridModel, add attributes given in config["parameters_llm"] (among them llm_name)
                 setattr(self, key, val)
-        else:
-            for key, val in config["parameters_abm"].items():
-                setattr(self, key, val)    
 
         self.client = None
         if with_llm and "gpt" in self.config["parameters_llm"]["llm_name"]:
@@ -53,7 +50,7 @@ class GridModel():
         self.num_agents = len(self.agents)
  
 
-
+    # NOT USING THIS
     def init_openai_client(self):
         """
         Init the openai client if needed
@@ -196,7 +193,7 @@ class GridModel():
         """
         return -1
     
-
+    # I MADE THIS FUNCTION
     def updating_prompts(self,conversation=None):
         if conversation is None:
             conversation = [
@@ -273,11 +270,10 @@ class GridModel():
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
             ratio=self.update() #the ratio of agents that have moved
-            print('\n\t### Ended the process of deciding on whether to stay or move for all agents ###')
+            print(f'\t### {ratio}% of agents updated in Step " + str({i}) ###')
+
             ratio_actions.append(ratio)
-            score_population.append(self.evaluate_population()) #appends the current score of the grid
-            
-            print("\t\t% of agents updated in Step " + str(i) + " : " + str(ratio) + " % updates")
+            score_population.append(self.evaluate_population()) #appends the current score of the grid            
 
             # Save data every X steps
             if i % self.config["save_every"] == 0:

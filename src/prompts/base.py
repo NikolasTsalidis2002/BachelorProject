@@ -1,5 +1,3 @@
-
-
 ###### PERCEIVE ########
 PERCEPTION={
     "local": """Here are the persona you have recently interacted with: {local_perception}.""",

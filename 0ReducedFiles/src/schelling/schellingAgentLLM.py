@@ -1,13 +1,14 @@
 
 import numpy as np
+from itertools import product
 # from llama_cpp import Llama #https://llama-cpp-python.readthedocs.io/en/latest/api-reference
-from src.agentLLM import GridLLMAgent
-from src.models.schelling.prompts.meta import META_PROMPTS
+from src.agentLLM import LLMAgent
+from src.schelling.prompts.meta import META_PROMPTS
 
 
 
 
-class SchellingLLMAgent(GridLLMAgent):   
+class SchellingLLMAgent(LLMAgent):  
     # TODO DOUBLE INHERITANCE LLM AGENT AND GRID AGENT...
     
     def __init__(self, config, position=None, state=None, client=None):
@@ -17,11 +18,16 @@ class SchellingLLMAgent(GridLLMAgent):
         """
 
         persona = config["parameters"]["personas"][state]
-        super().__init__(config, position=position, state=state, persona=persona, client=client)
+        # super().__init__(config, position=position, state=state, persona=persona, client=client)
+
+        # initilaize LLMAgent
+        super().__init__(config, state=state, persona=persona, client=client)
         self.message = self.get_state_as_text()
 
         # setup meta prompts
         self.PROMPTS = META_PROMPTS
+        self.position = tuple(position)
+
 
     def get_state_as_text(self):
         """
@@ -34,7 +40,19 @@ class SchellingLLMAgent(GridLLMAgent):
         return state1 == state2
     
 
+    def get_neighbors(self, agents, k=1):
+        offsets = list(product(range(-k, k + 1), repeat=len(self.position)))
+        offsets.remove((0,) * len(self.position))
+        neighbors = []
+        for offset in offsets:
+            neighbor_pos = tuple(self.position[i] + offset[i] for i in range(len(self.position)))
+            if neighbor_pos in agents:
+                neighbors.append(agents[neighbor_pos])
+        return neighbors
+
+
     def perceive(self, agents, global_perception=None):
+        # we are currently not using the global_perception
         """
         Perception by default is made by one own state, some global perception and some local perceptions (neighbor messages)
         """
@@ -54,7 +72,7 @@ class SchellingLLMAgent(GridLLMAgent):
                     shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
                     # shared is going to be a long string where it has the different names saying what their persona is (ie: james is conservative. Peter is socialist...)
             if shared != "":
-                # Your neighborhood is composed of the following: shared
+                # Your neighborhood is composed of the following: your neighbors and their believes
                 perception["local"] = prompts["local"].format(local_perception=shared) + shared
 
         # we are not taking global perception into consideration??? -> global_perception is not given as an argument in the update method
@@ -75,10 +93,11 @@ class SchellingLLMAgent(GridLLMAgent):
         Args:
             perception: here num_neighbors_by_type
         """
+        # put the local perception (global as well if it was used) in a string that says --> Context: ...
         context = self.get_context_from_perception(perception)
 
-        # If satisfied, do nothing
-        if perception is None: # how can it be none???? how does perception represent satisfaction???
+        # If satisfied, do nothing - as far as I know, this can never be None. Worst case scenario it can be an empty dict
+        if perception is None:
             return 0, None
 
         # filter dictionary to only keep better positions #TODO:
@@ -89,7 +108,8 @@ class SchellingLLMAgent(GridLLMAgent):
             return 0, None
 
         # Check if want to move
-        # Context: perceptions[local] + update part in meta.py (conisderation part )
+        # Given the context (your neighbors and their believes), see if you want to move or stay (found in UPDATE in meta.py)
+        # IF WE WANT TO CHANGE THE INSTRUCTIONS OF THE TASK, THEN WE HAVE TO DO THAT HERE
         prompt = context + self.PROMPTS["update"].format(name=self.name)
         response = self.ask_llm(prompt, max_tokens=5) # given instructions and commands, it will make a prediction on what to do
         if "STAY" in response:
