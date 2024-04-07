@@ -285,8 +285,8 @@ class GridModel():
             print(f'\tFinal_score --> {final_score}%')            
 
             print('\n\n### Starting process of prompt modification if needed ###')
-            # if float(final_score) < 1: # if we want to execute the prompt breeder
-            if float(final_score) > 1: # if we do not want to execute the promt breeder
+            if float(final_score) < 1: # if we want to execute the prompt breeder
+            # if float(final_score) > 1: # if we do not want to execute the promt breeder
                 print('\tFinal score below 1.0%. Going to change the prompts\n\n')
                     
                 socialist,conservative,task,conversation = self.updating_prompts().values()
