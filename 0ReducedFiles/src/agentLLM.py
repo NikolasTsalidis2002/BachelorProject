@@ -47,6 +47,7 @@ class LLMAgent:
             self.model = self.llm_name
 
         self.chatbot = self.initialise_llm(self.model) # it is going to be llama
+        # print('THis is the model that we are going to be using --> ',self.chatbot)
 
         # Memory
         self.recent_memory = []
@@ -64,11 +65,13 @@ class LLMAgent:
         Initialise the LLM model
         """
         # it esentially only accepts llama as a valid model (ensure llama is present in config[parameters_llm][llm_name])
+        # print('##### we are about to initiate model!!')
         if "ollama" in model_name:
             return None
 
         elif "llama" in model_name:  # context length from config file
             # seed: -1 for random #verbose not print time stamp etc
+            # print('####### IT IS USING THIS --> ',"./llm/" + model_name + ".bin")
             return Llama(model_path="./llm/" + model_name + ".bin", n_ctx=self.config["max_tokens"][self.model], seed=-1, verbose=False)
         elif "gpt" in model_name:
             return None  # no need if use api directly
@@ -84,11 +87,14 @@ class LLMAgent:
         if debug:
             print(f"Asking message, attempt {num_attempts}: " + prompt)
 
-        
+        # print('this is the model that we are going to use to ask question --> ',self.model)
         if "ollama" in self.model:
+            model = self.model.split("_")[1] if "_" in self.model else "llama2"
+            model += ':13b'
+            # print('going a little bit more into detail --> ',model)
             output = ollama.chat(
                 #TODO: create more parameters in model file about max tokens etc etc
-                model=self.model.split("_")[1] if "_" in self.model else "llama2",
+                model=model,
                 messages=[
                     {
                         "role": "system",
