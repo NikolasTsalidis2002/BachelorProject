@@ -104,8 +104,11 @@ class SchellingLLMAgent(LLMAgent):
             return 0, None
 
         # filter dictionary to only keep better positions #TODO:
-        desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}
-
+        # only select the locations which have a greater score than the one the agent currently has
+        desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}        
+        print('desirable_positions --> ',desirable_positions)
+        print('self.position --> ',self.position)
+        
         # if no empty home
         if len(list(desirable_positions.keys())) == 0:
             return 0, None

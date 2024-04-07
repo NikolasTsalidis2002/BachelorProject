@@ -127,6 +127,8 @@ class GridModel():
             #aka malloc rated_positions into possible positions
             possible_positions = copy.deepcopy(rated_positions) #TODO better
 
+        print('original agents --> ',self.agents.keys())
+        counter = 0
         for agent in tp_agents.values():
             r=random.random()
             #Copy position of the agent
@@ -134,7 +136,6 @@ class GridModel():
 
 
             #TODO: If do not update each step keep memory ? 
-
             if r <= self.update_likelihood:
 
                 # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic                
@@ -155,7 +156,10 @@ class GridModel():
                     del possible_positions[new_position] #already moved to that position, so not empty anymore
                     self.update_agents_dic(agent, old_position, new_position) 
 
+                print(f'updated agent {counter} --> ',self.agents.keys())
                 time.sleep(1)
+            
+            counter += 1
 
         #returns the ratio of agents that have moved
         return count/num_agents if num_agents>0 else 0
@@ -285,8 +289,8 @@ class GridModel():
             print(f'\tFinal_score --> {final_score}%')            
 
             print('\n\n### Starting process of prompt modification if needed ###')
-            if float(final_score) < 1: # if we want to execute the prompt breeder
-            # if float(final_score) > 1: # if we do not want to execute the promt breeder
+            # if float(final_score) < 1: # if we want to execute the prompt breeder
+            if float(final_score) > 1: # if we do not want to execute the promt breeder
                 print('\tFinal score below 1.0%. Going to change the prompts\n\n')
                     
                 socialist,conservative,task,conversation = self.updating_prompts().values()
