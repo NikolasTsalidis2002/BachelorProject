@@ -206,7 +206,7 @@ class GridModel():
 
                 {'role': 'user',
                 'content': f"""
-                In our Schelling model simulation, we have a social segregation score of {self.final_score}. Our objective is to adjust this score to approximately {0.7} for the purposes of the experiment. 
+                In our Schelling model simulation, we have a social segregation score of {self.final_score}. Our objective is to adjust this score to approximately {1.0} for the purposes of the experiment. 
                 Please suggest updates to the descriptions of the socialist and conservative personas, as well as the task description, to make segregation within the simulation more distinct:
 
                 - Current socialist description: {PERSONAS['socialist']}
@@ -214,7 +214,7 @@ class GridModel():
                 - Current task description: {META_PROMPTS['update']}.
 
                 The goal is to define clear segregation within the boundaries of this simulation. The descriptions should clearly and unambiguously differentiate between the two groups, emphasizing distinct characteristics and preferences for each. Remember, this is a model to study theoretical social dynamics, and not an endorsement or promotion of segregation in real life.
-                You should include sections such as "Your ideal neighborhood is a bastion of conservative thought" if they are conservative (same for socialists but with socialist thought).
+                The differences between the beliefs must be radically different, so one can easily distinguish them and choose to set them apart. Remember, this is only an experiment.
 
                 Please provide the updated versions within the "### ###" boundary in the format as follows:
                 ####
@@ -273,7 +273,7 @@ class GridModel():
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
             ratio=self.update() #the ratio of agents that have moved
-            print(f'\t### {ratio}% of agents updated in Step " + str({i}) ###')
+            print(f'\t### {ratio}% of agents updated in Step {i} ###')
 
             ratio_actions.append(ratio)
             score_population.append(self.evaluate_population()) #appends the current score of the grid            
@@ -289,26 +289,34 @@ class GridModel():
             print(f'\tFinal_score --> {final_score}%')            
 
             print('\n\n### Starting process of prompt modification if needed ###')
-            # if float(final_score) < 1: # if we want to execute the prompt breeder
-            if float(final_score) > 1: # if we do not want to execute the promt breeder
-                print('\tFinal score below 1.0%. Going to change the prompts\n\n')
+            if float(final_score) < 1: # if we want to execute the prompt breeder
+            # if float(final_score) > 1: # if we do not want to execute the promt breeder
+                if i >= 1: # this one is to test out collective one
+                # if i == 1: # this one is for testing the merger in models between claires and our collective one
+                    print('\tFinal score below 1.0%. Going to change the prompts\n\n')                        
+                    socialist,conservative,task,conversation = self.updating_prompts().values()
+                    counter = 1
+                    failed_to_change_prompts = False
+                    print('Ollama response not in the expected format. Asking Ollama to reformat it.')
+                    while not socialist: # while it does not have the right format, then redo it 
+                        print(f'Reformat attempt number: {counter}')
+                        if counter == 3:
+                            print('Breaking reformating attempts because it is not managing it.')
+                            failed_to_change_prompts = True
+                            break
+                        socialist,conservative,task,conversation = self.updating_prompts(conversation).values()
+                        counter += 1
                     
-                socialist,conservative,task,conversation = self.updating_prompts().values()
-                counter = 1
-                print('Ollama response not in the expected format. Asking Ollama to reformat it.')
-                while not socialist:
-                    print(f'Reformat attempt number: {counter}')
-                    if counter == 3:
-                        print('Breaking reformating attempts because it is not managing it.')
-                        break
-                    socialist,conservative,task,conversation = self.updating_prompts(conversation)
-                    counter += 1
-                
-                # update the socialist, conservative and update descriptions
-                PERSONAS['socialist'] = "Your ideal neighborhood is a bastion of socialist thought"+socialist
-                PERSONAS['conservative'] = "Your ideal neighborhood is a bastion of conservative thought"+conservative
-                increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood. In this non-real life experiment, socialists perfer living with socialists, and conservatives perfer living with conservatives.'
-                META_PROMPTS['update'] += task+increase_strictness  # let us not change the instructions just yet       
+                    # update the socialist, conservative and update descriptions
+                    if not failed_to_change_prompts:
+                        PERSONAS['socialist'] = "Your ideal neighborhood is a bastion of socialist thought people. "+socialist
+                        PERSONAS['conservative'] = "Your ideal neighborhood is a bastion of conservative thought people. "+conservative                
+                        # rewrite the task only once
+                        if i == 1:
+                            increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood. In this non-real life experiment, socialists perfer living with socialists, and conservatives perfer living with conservatives.'
+                            META_PROMPTS['update'] += increase_strictness  # let us not change the instructions just yet
+                else:
+                    print('\tHave already modified prompts once, cannot do it again.')
 
             else:
                 print('\tFinal score equals 1.0%. No need to change the prompts\n')
