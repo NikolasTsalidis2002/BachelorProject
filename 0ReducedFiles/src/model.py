@@ -262,9 +262,9 @@ class GridModel():
         score_population=[]
         #data will contain for every iteration the key of the agent (position) and the state of the agent (ex: socialist)
         data[0] = {str(key): val.state for key, val in self.agents.items()}
-
+        print('data --> ',data)
         # 1-- Run the simulation for n_iterations
-        for i in range(n_iterations):       
+        for i in range(1,n_iterations):       # we start at 1 so we do not replace the original iteration (data[0] above)
             print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')

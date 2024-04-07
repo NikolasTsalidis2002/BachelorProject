@@ -54,7 +54,7 @@ class LLMAgent:
 
         self.message = message  # What transmit to neighbors initially
         self.historics = {"prompt": self.system_prompt, "state": [self.state], "message": [self.message]}
-
+        # print('self.historics --> ',self.historics)
         self.PROMPTS = META_PROMPTS # this is the PERCEPTION and UPDATE
 
         self.client = client

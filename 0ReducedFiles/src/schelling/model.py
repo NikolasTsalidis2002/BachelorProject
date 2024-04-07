@@ -44,6 +44,9 @@ class SchellingLLMModel(GridModel):
         states = [i for i in range(len(self.personas)) for j in range(num_agents_by_type[i])]        
         random.shuffle(states)
 
+        print('self.positions --> ',self.positions)
+        print('states --> ',states)
+
         #self.beliefs = self.initialise_beliefs_population(num_agents_by_type, bias, self.config["parameters_llm"]["polarization"])
         for n in range(num_agents):
             # self.client is initialised in GirdModel -> and the client is OpenAi in the case of wanting to use it

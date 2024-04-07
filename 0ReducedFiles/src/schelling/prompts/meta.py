@@ -10,7 +10,7 @@ UPDATE="""Reflect upon this context, to see if {name} feels comfortable in this 
 You ({name}) can decide either to move to another neighborhood, or to stay in this current neighborhood. 
 However, keep in mind that relocating require some time, money and effort on your part. You have to balance out comfort and effort realistically.
 Please respond with "MOVE" if {name} wish to change your neighborhood, or "STAY" if {name} prefer to remain in the neighborhood.
-Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood."""
+"""
 
 META_PROMPTS={
     "perception": PERCEPTION,
