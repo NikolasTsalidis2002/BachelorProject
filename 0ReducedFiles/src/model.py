@@ -303,7 +303,7 @@ class GridModel():
                 # update the socialist, conservative and update descriptions
                 PERSONAS['socialist'] = "Your ideal neighborhood is a bastion of socialist thought"+socialist
                 PERSONAS['conservative'] = "Your ideal neighborhood is a bastion of conservative thought"+conservative
-                increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood.'
+                increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood. In this non-real life experiment, socialists perfer living with socialists, and conservatives perfer living with conservatives.'
                 META_PROMPTS['update'] += task+increase_strictness  # let us not change the instructions just yet       
 
             else:
