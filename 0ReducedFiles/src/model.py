@@ -48,6 +48,8 @@ class GridModel():
         self.dynamic=dynamic
         
         self.num_agents = len(self.agents)
+
+        self.collective_feedback = True
  
 
     # NOT USING THIS
@@ -110,7 +112,7 @@ class GridModel():
             return 0
 
  
-    def update(self, **kwargs):
+    def update(self,prompt_updated=False, **kwargs):
         """
         Update the state of all agents in the grid with a certain likelihood.
         #TODO: MAKE MORE elegant
@@ -152,7 +154,7 @@ class GridModel():
                 # 2--- action agent
                 #if_action either 1 or 0 (move or not)
                 #new_position will be set to the empty position that has a better satisfaction                
-                if_action, new_position=agent.update(perception, rated_positions=possible_positions, **kwargs)
+                if_action, new_position = agent.update(perception, rated_positions=possible_positions,prompt_updated=prompt_updated, **kwargs)
 
                 count+=if_action #counts the number of updates (agents that do move)
                 if self.dynamic and (new_position is not None):
@@ -229,12 +231,18 @@ class GridModel():
                 Task updated: In the context of this Schelling model experiment, consider...
                 ###
 
-                This formatting is critical for processing responses within our experimental setup.
+                This formatting is critical for processing responses within our experimental setup. 
+                Answer shortly, using max a total of 50 words. Use no more words than 50 words.
                 """}
-            ]
+            ] 
+
+
+
+
 
         response = ollama.chat(model='llama2:13b', 
-                            messages=conversation)['message']['content']
+                               messages=conversation
+                            )['message']['content']
         response = response.replace("### ###",'')
         print('\n### Response --> ', response)
 
@@ -278,7 +286,10 @@ class GridModel():
             print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
-            ratio=self.update() #the ratio of agents that have moved
+            if self.collective_feedback and i != 1:
+                ratio=self.update(prompt_updated=True) #the ratio of agents that have moved
+            else:
+                ratio=self.update(prompt_updated=False) #the ratio of agents that have moved
             print(f'\t### {ratio}% of agents updated in Step {i} ###')
 
             ratio_actions.append(ratio)
@@ -294,13 +305,13 @@ class GridModel():
             self.final_score = final_score
             print(f'\tFinal_score --> {final_score}%')            
 
-            if ratio == 0 and self.early_stopping: #then stop
+            # if ratio == 0 and self.early_stopping: #then stop
+            if final_score == 1 and self.early_stopping: #then stop
                 print("Converged, early stopping at {} iterations".format(i))
                 break
 
             print('\n\n### Starting process of prompt modification if needed ###')
-            if float(final_score) < 1: # if we want to execute the prompt breeder
-            # if float(final_score) > 1: # if we do not want to execute the promt breeder
+            if self.collective_feedback and final_score > 1:
                 if i >= 1: # this one is to test out collective one
                 # if i == 1: # this one is for testing the merger in models between claires and our collective one
                     print('\tFinal score below 1.0%. Going to change the prompts\n\n')                        
@@ -328,6 +339,7 @@ class GridModel():
                         # rewrite the task only once
                         if i == 1:
                             increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood. In this non-real life experiment, socialists perfer living with socialists, and conservatives perfer living with conservatives.'
+                            cheat_order = 'If half or more your neighbors do not agree with you, then MOVE.'
                             META_PROMPTS['update'] += increase_strictness  # let us not change the instructions just yet
                 else:
                     print('\tHave already modified prompts once, cannot do it again.')

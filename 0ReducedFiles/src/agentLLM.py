@@ -106,7 +106,7 @@ class LLMAgent:
                     },
                 ],
                 options = {
-                    "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
+                    # "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
                     "temperature": self.temperature, #Controls the randomness of the output
                     "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
  #                   "repeat_penalty": 1.176,

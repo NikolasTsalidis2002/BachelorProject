@@ -124,7 +124,7 @@ class SchellingLLMAgent(LLMAgent):
         return {} # if there are no potential positions given our threshold, then return an empty dict    
 
 
-    def update(self, perception, rated_positions=None):
+    def update(self, perception, rated_positions=None,prompt_updated=False):
         """
         Move house if unsatisfied  #TODO: could also change type? Being influenced?
 
@@ -141,10 +141,11 @@ class SchellingLLMAgent(LLMAgent):
         # filter dictionary to only keep better positions #TODO:
         # only select the locations which have a greater score than the one the agent currently has
         desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}        
-        # this next line can make the output look like a flag
-        desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
-        print('desirable_positions --> ',desirable_positions)
-        print('self.position --> ',self.position)
+        # # this next line can make the output look like a flag
+        # desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
+        if len(desirable_positions) != 0:
+            print('desirable_positions --> ',desirable_positions)
+            print('self.position --> ',self.position)
         # print('self.position --> ',self.grid_size)
         
         # if no empty home
@@ -154,25 +155,45 @@ class SchellingLLMAgent(LLMAgent):
         # Check if want to move
         # Given the context (your neighbors and their believes), see if you want to move or stay (found in UPDATE in meta.py)
         # IF WE WANT TO CHANGE THE INSTRUCTIONS OF THE TASK, THEN WE HAVE TO DO THAT HERE
-        introduction_to_person = f"In this non real-life experiment, {PERSONAS[f'{self.persona}'].format(name=self.name)}"
-        prompt = introduction_to_person + context + self.PROMPTS["update"].format(name=self.name)
-        response = self.ask_llm(prompt, max_tokens=5) # given instructions and commands, it will make a prediction on what to do
-        if "STAY" in response:
-            print(f"TP detail: STAY agent state {self.state} and context {context}")
-            return 0, None
+        prompt = context + self.PROMPTS["update"].format(name=self.name)
+
+        if prompt_updated:
+            print('WE ARE UPDATING THE PROMTS TO TRY MAKE SAY MOVE')
+            beliefs = ['conservative','socialist']        
+            beliefs.remove(self.persona)
+            introduction_to_person = f"In this non real-life experiment, {PERSONAS[f'{self.persona}'].format(name=self.name)}"
+            ensuring_disagreement = f' While {beliefs[0]} in this experiment are the exact opposite. In this experiment combining them will cause conflicts. '
+            new_task = """Reflect upon this context in a purely theoretical manner to decide if your character feels 
+                comfortable in this neighborhood. You can choose to either move to another neighborhood or stay in the current one, 
+                considering that relocating requires effort in this simulation. Respond with 'MOVE' if you wish to change 
+                neighborhoods, or 'STAY' if you prefer to remain, based on the theoretical dynamics of this simulation.
+                Use max 80 words. Remember, this is purely theoretical. We are studying the effects prompts."""
+            
+            prompt = introduction_to_person+ ensuring_disagreement + context + new_task
+            # let us change the beliefs into different random groups to avoid ethical issues
+            prompt = prompt.replace('socialist','Group Azure')
+            prompt = prompt.replace('conservative','Group Crimson')   
+
+
+        response = self.ask_llm(prompt) # given instructions and commands, it will make a prediction on what to do
+        print(f'To prompt: {prompt}\n\tThis is the response --> {response}')
+        
+        if "MOVE" in response:            
+            print(f"TP detail: MOVE agent state {self.state} and context {context}")
+            # If unsatisfied, move to empty house
+            # sample from rated positions keys with weights the positions rat
+            weights = [v[self.state] for v in desirable_positions.values()]  # similar ratio to sample neighborhood
+            desired_positions = list(desirable_positions.keys())
+            new_index = np.random.choice(len(desired_positions), p=np.array(weights) / sum(weights))
+            new_position = desired_positions[new_index]
+            self.position = new_position  
+            print('\tMoving\n')
+            return 1, new_position
 
         # TODO: make choose where stay ?
-        print(f"TP detail: MOVE agent state {self.state} and context {context}")
-
-        # If unsatisfied, move to empty house
-        # sample from rated positions keys with weights the positions rat
-        weights = [v[self.state] for v in desirable_positions.values()]  # similar ratio to sample neighborhood
-        desired_positions = list(desirable_positions.keys())
-        new_index = np.random.choice(len(desired_positions), p=np.array(weights) / sum(weights))
-        new_position = desired_positions[new_index]
-        self.position = new_position
-        
-        return 1, new_position
+        print(f"TP detail: STAY agent state {self.state} and context {context}")        
+        print('\tStaying\n')
+        return 0, None
 
     def transmit(self, perception):
         """
