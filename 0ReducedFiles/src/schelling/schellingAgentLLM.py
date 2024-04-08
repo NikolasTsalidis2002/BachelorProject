@@ -4,6 +4,7 @@ from itertools import product
 # from llama_cpp import Llama #https://llama-cpp-python.readthedocs.io/en/latest/api-reference
 from src.agentLLM import LLMAgent
 from src.schelling.prompts.meta import META_PROMPTS
+from src.schelling.prompts.persona import PERSONAS
 
 
 
@@ -18,6 +19,7 @@ class SchellingLLMAgent(LLMAgent):
         """
 
         persona = config["parameters"]["personas"][state]
+        self.persona = persona
         # super().__init__(config, position=position, state=state, persona=persona, client=client)
 
         # initilaize LLMAgent
@@ -30,6 +32,8 @@ class SchellingLLMAgent(LLMAgent):
         # setup meta prompts
         self.PROMPTS = META_PROMPTS
         self.position = tuple(position)
+
+        self.grid_size = config['grid_size']
 
 
     def get_state_as_text(self):
@@ -88,6 +92,37 @@ class SchellingLLMAgent(LLMAgent):
             1 if len(neighbors) == 0 else sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
         ) # is the ratio of neighbors that agree in persona with the agent at the time 
         return perception
+    
+
+    # we want to use the schelling model to not just seggregate a population, but to create a shape with this seggregation
+    # to do this, we are going to filter out the possible positions an agent can move to given that they are above or below half the axis
+    def get_valid_state_potential_move_positions(self,desireable_positions:dict,state:int):
+        # get half the grid size
+        grid_size = np.array(self.grid_size)
+        half_grid_size = grid_size/2
+
+        if len(desireable_positions) != 0:
+            # get the xs values of the potential positions. From these, filter out those which are above or below half the grid x axis        
+            xs,ys = np.array(list(desireable_positions.keys())).T
+
+            # given agent's state, make them only be able to go to one side of the grid or the other
+            if int(state) == 0: greater_than_half_desireable_pos = list(np.where(xs >= int(half_grid_size[0]))[0])
+            elif int(state) == 1: greater_than_half_desireable_pos = list(np.where(xs < int(half_grid_size[0]))[0])
+            
+            # if there are some potential positions greater than the given threshold, then put them as the new desirable positions and filter out the rest
+            if len(greater_than_half_desireable_pos) > 0:
+                # make a new dictionary with the keys and values of the old desireable positions given that they are above or below the threshold
+                new_desireable_pos = {}
+                counter = 0
+                for k,v in desireable_positions.items():
+                    if counter in greater_than_half_desireable_pos:
+                        new_desireable_pos[k] = v
+                    counter += 1
+
+                return new_desireable_pos
+            
+        return {} # if there are no potential positions given our threshold, then return an empty dict    
+
 
     def update(self, perception, rated_positions=None):
         """
@@ -106,8 +141,11 @@ class SchellingLLMAgent(LLMAgent):
         # filter dictionary to only keep better positions #TODO:
         # only select the locations which have a greater score than the one the agent currently has
         desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}        
+        # this next line can make the output look like a flag
+        desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
         print('desirable_positions --> ',desirable_positions)
         print('self.position --> ',self.position)
+        # print('self.position --> ',self.grid_size)
         
         # if no empty home
         if len(list(desirable_positions.keys())) == 0:
@@ -116,7 +154,8 @@ class SchellingLLMAgent(LLMAgent):
         # Check if want to move
         # Given the context (your neighbors and their believes), see if you want to move or stay (found in UPDATE in meta.py)
         # IF WE WANT TO CHANGE THE INSTRUCTIONS OF THE TASK, THEN WE HAVE TO DO THAT HERE
-        prompt = context + self.PROMPTS["update"].format(name=self.name)
+        introduction_to_person = f"In this non real-life experiment, {PERSONAS[f'{self.persona}'].format(name=self.name)}"
+        prompt = introduction_to_person + context + self.PROMPTS["update"].format(name=self.name)
         response = self.ask_llm(prompt, max_tokens=5) # given instructions and commands, it will make a prediction on what to do
         if "STAY" in response:
             print(f"TP detail: STAY agent state {self.state} and context {context}")

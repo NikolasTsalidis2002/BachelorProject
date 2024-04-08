@@ -122,14 +122,20 @@ class GridModel():
         
         possible_positions=None
         #0-- rate all empty positions if dynamic
-        if self.dynamic: # ie if agents move on the grid
-            rated_positions=self.evaluate_empty_positions() 
-            #aka malloc rated_positions into possible positions
-            possible_positions = copy.deepcopy(rated_positions) #TODO better
+        # if self.dynamic: # ie if agents move on the grid
+        #     rated_positions=self.evaluate_empty_positions() 
+        #     #aka malloc rated_positions into possible positions
+        #     possible_positions = copy.deepcopy(rated_positions) #TODO better
 
         print('original agents --> ',self.agents.keys())
         counter = 0
         for agent in tp_agents.values():
+            # evaluate the empty positions after every time an agent has moved
+            if self.dynamic: # ie if agents move on the grid
+                rated_positions=self.evaluate_empty_positions() 
+                #aka malloc rated_positions into possible positions
+                possible_positions = copy.deepcopy(rated_positions) #TODO better
+
             r=random.random()
             #Copy position of the agent
             old_position = copy.deepcopy(agent.position)
@@ -268,7 +274,7 @@ class GridModel():
         data[0] = {str(key): val.state for key, val in self.agents.items()}
         print('data --> ',data)
         # 1-- Run the simulation for n_iterations
-        for i in range(1,n_iterations):       # we start at 1 so we do not replace the original iteration (data[0] above)
+        for i in range(1,n_iterations+1):       # we start at 1 so we do not replace the original iteration (data[0] above)
             print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
@@ -287,6 +293,10 @@ class GridModel():
             final_score=round(self.evaluate_population(),3)
             self.final_score = final_score
             print(f'\tFinal_score --> {final_score}%')            
+
+            if ratio == 0 and self.early_stopping: #then stop
+                print("Converged, early stopping at {} iterations".format(i))
+                break
 
             print('\n\n### Starting process of prompt modification if needed ###')
             if float(final_score) < 1: # if we want to execute the prompt breeder
@@ -309,8 +319,12 @@ class GridModel():
                     
                     # update the socialist, conservative and update descriptions
                     if not failed_to_change_prompts:
-                        PERSONAS['socialist'] = "Your ideal neighborhood is a bastion of socialist thought people. "+socialist
-                        PERSONAS['conservative'] = "Your ideal neighborhood is a bastion of conservative thought people. "+conservative                
+                        og_socialist = PERSONAS['socialist']
+                        socialist_person_intro = og_socialist.split(' living')[0]+'. '
+                        og_conservative = PERSONAS['conservative']
+                        conservative_person_intro = og_conservative.split(' living')[0]+'. '
+                        PERSONAS['socialist'] = socialist_person_intro+"Your ideal neighborhood is a bastion of socialist thought people. "+socialist
+                        PERSONAS['conservative'] = conservative_person_intro+"Your ideal neighborhood is a bastion of conservative thought people. "+conservative                
                         # rewrite the task only once
                         if i == 1:
                             increase_strictness = 'Be very strict when choosing. In this experiemnt small disagreements can create an unhappy neighborhood. In this non-real life experiment, socialists perfer living with socialists, and conservatives perfer living with conservatives.'
@@ -322,11 +336,6 @@ class GridModel():
                 print('\tFinal score equals 1.0%. No need to change the prompts\n')
             
             print('\n\t### Finished process of prompt modification ###\n')
-
-
-            if ratio == 0 and self.early_stopping: #then stop
-                print("Converged, early stopping at {} iterations".format(i))
-                break
 
         # 2--- Plot the final state
         if not self.config["dev"]:

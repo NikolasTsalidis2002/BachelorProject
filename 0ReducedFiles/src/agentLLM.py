@@ -85,7 +85,7 @@ class LLMAgent:
         response = None
 
         if debug:
-            print(f"Asking message, attempt {num_attempts}: " + prompt)
+            print(f"\n\nAsking message, attempt {num_attempts}: " + prompt)
 
         # print('this is the model that we are going to use to ask question --> ',self.model)
         if "ollama" in self.model:
