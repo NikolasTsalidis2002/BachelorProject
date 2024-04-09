@@ -5,7 +5,7 @@ dev: False #if in dev mode, do not save output, etc.
 ##############
 # Experiment #
 ##############
-n_iterations: 3
+n_iterations: 5
 save_every: 1
 grid_size: [3, 3]
 
