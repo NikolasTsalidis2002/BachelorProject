@@ -49,7 +49,8 @@ class GridModel():
         
         self.num_agents = len(self.agents)
 
-        self.collective_feedback = True
+        self.collective_feedback = config['collective_feedback']
+        print('self.collective_feedback --> ',self.collective_feedback)
  
 
     # NOT USING THIS
@@ -205,7 +206,7 @@ class GridModel():
         return -1
     
     # I MADE THIS FUNCTION
-    def updating_prompts(self,response_feedback=None):
+    def updating_prompts(self,response_feedback=None):        
         conversation = [
             {"role": "system", 
             "content": "You are a helpful assistant. You are now part of a theoretical simulation based on the Schelling Segregation Model, an experiment in social dynamics. Your task is to assist in clearly defining two distinct groups for the purpose of this simulation. Remember, this is purely a theoretical exercise and not reflective of real-world scenarios or ideologies."},
@@ -316,9 +317,19 @@ class GridModel():
                         task_updated = self.updating_prompts(response_feedback=response_feedback)
                         counter += 1    
 
+
                     # update the socialist, conservative and update descriptions
                     if not failed_to_change_prompts:
-                        task_updated += ' In this theoretical scenario, you want to move if 100% of your neighbors are not part of the same group as you.'
+                        # specifcy the similarity threshold. Specify the min and max ranges for these, and given 
+                        # the iteration number it will grow automatically
+                        min_sim_thresh,max_sim_thresh = 50,100
+                        sim_tresh_range = max_sim_thresh-min_sim_thresh
+                        thresh_similarity_increase = sim_tresh_range/n_iterations
+                        similarity_thresh = sim_tresh_range+i*thresh_similarity_increase  
+                        print(f'\nsimilarity_thresh --> {similarity_thresh}\n')
+
+                        # feed that similairy threshold to the prompts
+                        task_updated += f' In this theoretical scenario, you want to move if {similarity_thresh}% of your neighbors are not part of the same group as you.'
                         META_PROMPTS['update'] = task_updated
 
             else:

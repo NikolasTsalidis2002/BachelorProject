@@ -35,6 +35,9 @@ class SchellingLLMAgent(LLMAgent):
 
         self.grid_size = config['grid_size']
 
+        self.make_flag_like_segregation = config['make_flag_like_segregation']
+        print('self.make_flag_like_segregation --> ',self.make_flag_like_segregation)
+
 
     def get_state_as_text(self):
         """
@@ -143,7 +146,9 @@ class SchellingLLMAgent(LLMAgent):
         # only select the locations which have a greater score than the one the agent currently has
         desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}        
         # # this next line can make the output look like a flag
-        # desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
+
+        if self.make_flag_like_segregation:
+            desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
         
         # if no empty home
         if len(list(desirable_positions.keys())) == 0:

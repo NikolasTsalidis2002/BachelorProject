@@ -2,12 +2,18 @@
 dev: False #if in dev mode, do not save output, etc.
 
 
+### our attributes
+make_flag_like_segregation: False
+collective_feedback: True
+
+
+
 ##############
 # Experiment #
 ##############
-n_iterations: 5
+n_iterations: 10
 save_every: 1
-grid_size: [3, 3]
+grid_size: [10, 10]
 
 ##############
 # Model - General #
