@@ -233,15 +233,8 @@ class LLMAgent:
                     # Additional messages and responses can follow based on the ongoing conversation
                 ]
 
-            
-                answer = ollama.chat(model='llama2:13b', messages=conversation)['message']['content']            
-                print('\n### New promt: \n',answer)
-
-                # get the action from the output
-                action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
-                print('-------->',action)
-                print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
-                print('-----------------------------------')
+                # make a prediction for what must happen with the new prompts
+                response = ollama.chat(model='llama2:13b', messages=conversation)['message']['content']            
 
 
 
