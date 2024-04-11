@@ -181,7 +181,7 @@ class SchellingLLMAgent(LLMAgent):
         print(f'To prompt: {prompt}\n\tThis is the response --> {response}')
         
         # sometimes the model does not respond only with move. Sometimes it says: saying would not be a good idea... include these sections just in case
-        if "move" in response.lower() or  "moving" in response.lower() or 'staying in this' in response.lower() or 'staying would' in response.lower():
+        if "move" in response.lower() or "relocat" in response.lower() or "moving" in response.lower() or 'staying in this' in response.lower() or 'staying would' in response.lower():
             print(f"TP detail: MOVE agent state {self.state} and context {context}")
             # If unsatisfied, move to empty house
             # sample from rated positions keys with weights the positions rat

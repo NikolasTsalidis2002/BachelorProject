@@ -342,9 +342,7 @@ class GridModel():
             #create folder if not exist
             if not os.path.exists("outputs/"+self.id):
                 os.makedirs("outputs/"+self.id)
-
-            
-
+                    
             #NOTE: if data string, convert it to float or int for visualisation
             for k,v in self.agents.items():
                 print('self.agents ---> ',k,v,'\n\tname --> ',v.name,'\n\tstate --> ',v.state,'\n\tmessage --> ',v.message
@@ -365,7 +363,7 @@ class GridModel():
             if len(list(data.keys())) > 0: 
                 with open(self.path+".json", "w") as f:
                     json.dump(data, f, default=json_serial)
-                generate_gif_from_data_grid(self.config, data_file=self.path+".json",output_file=self.path+"grid", title=self.title, with_llm=self.with_llm)
+                generate_gif_from_data_grid(self.config, data_file=self.path+".json",output_file=self.path+"grid", title=self.title, with_llm=self.with_llm)                
             
         return final_score
        
