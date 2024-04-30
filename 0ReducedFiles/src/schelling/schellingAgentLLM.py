@@ -17,7 +17,6 @@ class SchellingLLMAgent(LLMAgent):
         """
         Note here the state of the Schelling agent is is type .
         """
-
         persona = config["parameters"]["personas"][state]
         self.persona = persona
         # super().__init__(config, position=position, state=state, persona=persona, client=client)
@@ -34,6 +33,7 @@ class SchellingLLMAgent(LLMAgent):
         self.position = tuple(position)
 
         self.grid_size = config['grid_size']
+        self.similarity_threshold = config['similarity_threshold']
 
         self.make_flag_like_segregation = config['make_flag_like_segregation']
         print('self.make_flag_like_segregation --> ',self.make_flag_like_segregation)
@@ -91,8 +91,13 @@ class SchellingLLMAgent(LLMAgent):
             perception["global"] = prompts["global"].format(global_perception=global_perception)
 
         # Update score perception
+        position_happiness = sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
+        if position_happiness >= self.similarity_threshold: position_happiness = 1
+        # self.score = (
+        #     1 if len(neighbors) == 0 else sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
+        # ) # is the ratio of neighbors that agree in persona with the agent at the time 
         self.score = (
-            1 if len(neighbors) == 0 else sum([1 for n in neighbors if self.check_similarity_state(n.state, self.state)]) / len(neighbors)
+            1 if len(neighbors) == 0 else position_happiness
         ) # is the ratio of neighbors that agree in persona with the agent at the time 
         return perception
     
@@ -145,8 +150,8 @@ class SchellingLLMAgent(LLMAgent):
         # filter dictionary to only keep better positions #TODO:
         # only select the locations which have a greater score than the one the agent currently has
         desirable_positions = {k: v for k, v in rated_positions.items() if v[self.state] > self.score and k != self.position}        
+        
         # # this next line can make the output look like a flag
-
         if self.make_flag_like_segregation:
             desirable_positions = self.get_valid_state_potential_move_positions(desireable_positions=desirable_positions,state=self.state)
         

@@ -14,6 +14,7 @@ class SchellingLLMModel(GridModel):
     def __init__(self, config, id="", param_name=None):
         
         n_classes = len(config["parameters"]["personas"])
+        self.similarity_threshold = config['similarity_threshold']
         assert n_classes == len(config["parameters"]["ratio"]), "Number of classes must be equal to the number of ratios given"
 
         title=f"Schelling model LLM with {n_classes} classes"
@@ -77,9 +78,13 @@ class SchellingLLMModel(GridModel):
         similarity_ratios = []
         for i, persona in enumerate(self.personas):
             count_similar = sum([1 for n in neighbors if self.check_similarity_state(n.state, i)])
-            similarity_ratios.append(float(count_similar) / len(neighbors))
+            position_happiness = float(count_similar) / len(neighbors)
+            # if score is above the similarity threshold set in the config file, make it 1
+            if position_happiness >= self.similarity_threshold: position_happiness = 1
+            similarity_ratios.append(position_happiness)
 
         return similarity_ratios
+    
 
     def evaluate_population(self):
         """
@@ -89,10 +94,13 @@ class SchellingLLMModel(GridModel):
 
         for agent in self.agents.values():
             neighbors = agent.get_neighbors(self.agents, k=self.perception_radius)
-            #should return the number of neighbors that agree with the agent's state
+            #should return the number of neighbors that agree with the agent's state            
             count_similar = sum([1 for n in neighbors if self.check_similarity_state(n.state, agent.state)])
             try:
-                similarity.append(float(count_similar) / (len(neighbors)))
+                happiness = float(count_similar) / (len(neighbors))
+                if happiness >= self.similarity_threshold: happiness = 1
+                print('this is the happiness for the whole population --> ',happiness)                
+                similarity.append(happiness)                
             except:
                 similarity.append(1)
             

@@ -49,6 +49,8 @@ class LLMAgent:
         self.chatbot = self.initialise_llm(self.model) # it is going to be llama
         # print('THis is the model that we are going to be using --> ',self.chatbot)
 
+        self.similarity_threshold = config['similarity_threshold']
+
         # Memory
         self.recent_memory = []
         self.memory = []
@@ -132,6 +134,7 @@ class LLMAgent:
                 target_belief = person1.split('itself as')[1].split(',')[0].strip()
                 
                 # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
+                # in theory we would have to check the beliefs with the self.similarity_threshold
                 believes = [i for i in prompt.split() if i in ['socialist','conservative']]
                 max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
                 most_common_belief = list(max_believes.values())[0].strip()
