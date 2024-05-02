@@ -4,8 +4,10 @@ dev: False #if in dev mode, do not save output, etc.
 
 ### our attributes
 make_flag_like_segregation: False
-collective_feedback: False
-individual_feedback: True
+collective_feedback: True
+individual_feedback: False
+
+similarity_threshold: 0.5
 
 
 

@@ -26,6 +26,8 @@ class GridModel():
         # Grid size
         self.dimensions = config["grid_size"]  # Now expecting dimensions as a list for n-dimensions
 
+        self.similarity_threshold = 100#config['similarity_threshold']
+
         # Parameters model from config file
         for key, val in config["parameters"].items():
             setattr(self, key, val)
@@ -145,7 +147,6 @@ class GridModel():
 
             #TODO: If do not update each step keep memory ? 
             if r <= self.update_likelihood:
-
                 # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic                
                 # notice the tp_agents is a copy of all the agents (in a new memory address)
                 # notice -> this perceive comes from the script (schelling) agentABM/agentLLM
@@ -237,7 +238,6 @@ class GridModel():
                                 messages=conversation
                             )['message']['content']
 
-
         try:
             response_split = response.split('###')[1]
             if 'Reflect' in response.split('###')[1].strip():
@@ -322,7 +322,10 @@ class GridModel():
                     if not failed_to_change_prompts:
                         # specifcy the similarity threshold. Specify the min and max ranges for these, and given 
                         # the iteration number it will grow automatically
-                        min_sim_thresh,max_sim_thresh = 50,100
+                        # HERE!
+                        min_sim_thresh,max_sim_thresh = self.similarity_threshold-50,self.similarity_threshold
+                        if min_sim_thresh < 0: min_sim_thresh = 0
+
                         sim_tresh_range = max_sim_thresh-min_sim_thresh
                         thresh_similarity_increase = sim_tresh_range/n_iterations
                         similarity_thresh = sim_tresh_range+i*thresh_similarity_increase  
