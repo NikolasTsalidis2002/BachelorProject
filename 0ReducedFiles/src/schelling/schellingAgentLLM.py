@@ -162,7 +162,7 @@ class SchellingLLMAgent(LLMAgent):
         # Check if want to move
         # Given the context (your neighbors and their believes), see if you want to move or stay (found in UPDATE in meta.py)
         # IF WE WANT TO CHANGE THE INSTRUCTIONS OF THE TASK, THEN WE HAVE TO DO THAT HERE
-        prompt = context + self.PROMPTS["update"].format(name=self.name)
+        prompt = PERSONAS[f'{self.persona}'].format(name=self.name) +context + self.PROMPTS["update"].format(name=self.name)
 
         if prompt_updated:            
             beliefs = ['conservative','socialist']        

@@ -7,7 +7,7 @@ make_flag_like_segregation: False
 collective_feedback: True
 individual_feedback: False
 
-similarity_threshold: 0.5
+similarity_threshold: 1
 
 
 
