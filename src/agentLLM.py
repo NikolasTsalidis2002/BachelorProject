@@ -2,8 +2,8 @@ import random
 import time
 
 # from llama_cpp import Llama #https://llama-cpp-python.readthedocs.io/en/latest/api-reference
-from src.prompts.persona import PERSONAS, NAMES
-from src.prompts.base import META_PROMPTS
+from src.schelling.prompts.persona import PERSONAS, NAMES
+from src.schelling.prompts.meta import META_PROMPTS
 import time
 import numpy as np
 import networkx as nx
@@ -21,7 +21,7 @@ import yaml
 
 class LLMAgent:
 
-    def __init__(self, config, state=None, message=None, persona="", name=None, extra_prompt="", client=None):
+    def __init__(self, config, state:int, message=None, persona="", name=None, extra_prompt="", client=None):
         # this class is initiated in agentLLM.py (src -> GridLLMAgent.__init__())
         """
         LLM Agent
@@ -29,6 +29,10 @@ class LLMAgent:
         The persona prompt (e.g. system_prompt) is retrieved from this id.
 
         """
+
+        # create attributes for the features in the parameters_llm section of the config file
+        for key, val in config["parameters_llm"].items(): 
+            setattr(self, key, val)                
 
         self.name = random.choice(NAMES) if name is None else name # the name is going to be random coming from the list of naames in src.prompts.persona
         self.state = state
@@ -43,6 +47,9 @@ class LLMAgent:
             self.model = self.llm_name
 
         self.chatbot = self.initialise_llm(self.model) # it is going to be llama
+        # print('THis is the model that we are going to be using --> ',self.chatbot)
+
+        self.similarity_threshold = config['similarity_threshold']
 
         # Memory
         self.recent_memory = []
@@ -50,26 +57,32 @@ class LLMAgent:
 
         self.message = message  # What transmit to neighbors initially
         self.historics = {"prompt": self.system_prompt, "state": [self.state], "message": [self.message]}
-
+        # print('self.historics --> ',self.historics)
         self.PROMPTS = META_PROMPTS # this is the PERCEPTION and UPDATE
 
         self.client = client
+
+        self.individual_feedback = config['individual_feedback']
+        print('individual_feedback --> ',self.individual_feedback)
 
     def initialise_llm(self, model_name):
         """
         Initialise the LLM model
         """
         # it esentially only accepts llama as a valid model (ensure llama is present in config[parameters_llm][llm_name])
+        # print('##### we are about to initiate model!!')
         if "ollama" in model_name:
             return None
 
         elif "llama" in model_name:  # context length from config file
             # seed: -1 for random #verbose not print time stamp etc
+            # print('####### IT IS USING THIS --> ',"./llm/" + model_name + ".bin")
             return Llama(model_path="./llm/" + model_name + ".bin", n_ctx=self.config["max_tokens"][self.model], seed=-1, verbose=False)
         elif "gpt" in model_name:
             return None  # no need if use api directly
         else:
             raise NotImplementedError
+
 
     def ask_llm(self, prompt, num_attempts=1, debug=False, max_tokens=0):
         """
@@ -78,13 +91,16 @@ class LLMAgent:
         response = None
 
         if debug:
-            print(f"Asking message, attempt {num_attempts}: " + prompt)
+            print(f"\n\nAsking message, attempt {num_attempts}: " + prompt)
 
-        
+        # print('this is the model that we are going to use to ask question --> ',self.model)
         if "ollama" in self.model:
+            model = self.model.split("_")[1] if "_" in self.model else "llama2"
+            model += ':13b'
+            # print('going a little bit more into detail --> ',model)
             output = ollama.chat(
                 #TODO: create more parameters in model file about max tokens etc etc
-                model=self.model.split("_")[1] if "_" in self.model else "llama2",
+                model=model,
                 messages=[
                     {
                         "role": "system",
@@ -96,7 +112,7 @@ class LLMAgent:
                     },
                 ],
                 options = {
-                    "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
+                    # "num_predict": max_tokens, # says the maximum number of tokens the model can generate (answer in max 5 tokens)
                     "temperature": self.temperature, #Controls the randomness of the output
                     "top_p": self.top_p, #Used for a sampling strategy known as nucleus sampling, which helps in generating diverse and coherent text.
  #                   "repeat_penalty": 1.176,
@@ -109,129 +125,120 @@ class LLMAgent:
             # print('\tThis is the response --> {}'.format(response))
 
 
+            if self.individual_feedback:
+                # starting here, we are working on the individual prompt breeder
+                # get the target's name and target's believes
+                target = self.name
+                person1 =  self.system_prompt
+                task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
+                target_belief = person1.split('itself as')[1].split(',')[0].strip()
+                
+                # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
+                # in theory we would have to check the beliefs with the self.similarity_threshold
+                believes = [i for i in prompt.split() if i in ['socialist','conservative']]
+                max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
+                most_common_belief = list(max_believes.values())[0].strip()
+
+                if most_common_belief == target_belief: right_answer = 'Yes'
+                else: right_answer = 'No'
+
+                # get the neighborhood: the person in question and the person it is being compared to
+                descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]            
+                init_instruction = """
+                        Given the people in this description: {}.
+                        Answer the following task: {}
+                        Answer simply yes or no. 
+                        Notice: This is a test, so it is hypothetical. Please give an answer.
+                        Example answer: Yes.
+                        """.format(descriptions,task)        
+
+                print('##################################################################')
+                print('\n### This is the neighborhood it is using: ',descriptions)
+                print('\ttarget_belief --> ',target_belief)
+                print('\tmost_common_belief --> ',most_common_belief)
+                print('\tright_answer --> ',right_answer)
+                print('\n\t{} can {} live in the neighborhood'.format(target,right_answer))
+
+                # Following this, you can proceed with the rest of your script using the revised prompt.
+                conversation = [
+                    {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
+                    {
+                        'role': 'user',
+                        'content':init_instruction
+                    }
+                    # Additional messages and responses can follow based on the ongoing conversation
+                ]
+                response = ollama.chat(model='llama2:13b', 
+                                    messages=conversation,
+                                        options = {
+                                            "num_predict": 50
+                                        }                                      
+                                    )['message']['content']
+                print('\n### Response --> ', response)
+
+                # give the task add adivce on how to create a better prompt
+                conversation = [
+                    {"role": "system", "content": "You are an expert at improving prompts."},
+                    {
+                        'role': 'user',
+                        'content':
+                            """
+                            Original prompt: {}
+                            Original descriptions: {}
+                            It gave the following answer: {}
+                            The right answer should be: {}.
+                            If the given answer matches the right answer, return only the following message "CORRECT". Nothing else!
+                            Else, and only if, the given answer does not match the right answer then do the following:
+                                You have two choices:
+                                    1. Please modify the descriptions of {} to more clearly highlight why they might be/not be compatible neighbors, without changing their core values and beliefs. 
+                                    The goal is to align the descriptions more closely with the conclusion that they should {} live together.
+                                    2. Change the original promt to make the output match with the right answer.
+                                    Example: Take into consideration, core basic values even more.
+                                Clearly state what changes you have made.
+
+                            """.format(init_instruction, descriptions,response,right_answer,target,right_answer)
+                    }
+                ]
+                promt_correction = ollama.chat(model='llama2:13b', messages=conversation)['message']['content']
+                print('\n### Prompt correction advice --> ', promt_correction)
 
 
-            # right_answer = random.choice(['No','Yes'])
+                # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
+                conversation = [
+                    {
+                        "role": "system",
+                        "content": "You are an expert at interpreting prompts and following precise instructions."
+                    },
+                    {
+                        'role': 'user',
+                        'content':
+                            """
+                            For each scenario, you will be given three elements (which are given here in the content as well):
+                            1. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
+                            2. A task related to the scenario, the following:
 
-            # # get the target's name and target's believes
-            # target = self.name
-            # person1 =  self.system_prompt
-            # task = 'The task is to determine whether {} should live with its neighbors.'.format(target)
-            # target_belief = person1.split('itself as')[1].split(',')[0].strip()
-            
-            # # get the most common belief there is. See if target has the sam belief. If yes, STAY, else MOVE
-            # believes = [i for i in prompt.split() if i in ['socialist','conservative']]
-            # max_believes = {v:k for k,v in sorted(Counter(believes).items(),key= lambda i:i[1],reverse=True)}
-            # most_common_belief = list(max_believes.values())[0].strip()
+                                Your response should be based on the following logic:
+                                - If the prompt correction advice is 'CORRECT', respond with "STAY".
+                                - Otherwise, assess the initial prompt and the task:
+                                    - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors.
+                                    - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors.
 
-            # if most_common_belief == target_belief:
-            #     right_answer = 'Yes'
-            # else:
-            #     right_answer = 'No'
+                                Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
 
-            # # get the neighborhood: the person in question and the person it is being compared to
-            # descriptions = [person1,prompt.split('However')[0].split('Reflect upon this context')[0]]            
-            # init_instruction = """
-            #         Given the people in this description: {}.
-            #         Answer the following task: {}
-            #         Answer simply yes or no. 
-            #         Notice: This is a test, so it is hypothetical. Please give an answer.
-            #         Example answer: Yes.
-            #         """.format(descriptions,task)        
+                                Example:
+                                1. Prompt correction advice: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
+                                2. Task: (task found above)
+                                Your response should be "MOVE" because the scenario indicates incompatible living situations.
 
-            # print('##################################################################')
-            # print('\n### This is the neighborhood it is using: ',descriptions)
-            # print('\ttarget_belief --> ',target_belief)
-            # print('\tmost_common_belief --> ',most_common_belief)
-            # print('\tright_answer --> ',right_answer)
-            # print('\n\t{} can {} live in the neighborhood'.format(target,right_answer))
+                                Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
+                            """.format(promt_correction)
+                    }
+                    # Additional messages and responses can follow based on the ongoing conversation
+                ]
 
-            # # Following this, you can proceed with the rest of your script using the revised prompt.
-            # conversation = [
-            #     {"role": "system", "content": "You are a helpful assistant. You are trying to make a peaceful neighborhood."},
-            #     {
-            #         'role': 'user',
-            #         'content':init_instruction
-            #     }
-            #     # Additional messages and responses can follow based on the ongoing conversation
-            # ]
-            # response = ollama.chat(model='llama2', 
-            #                        messages=conversation,
-            #                         options = {
-            #                             "num_predict": 50
-            #                         }                                      
-            #                        )['message']['content']
-            # print('\n### Response --> ', response)
+                # make a prediction for what must happen with the new prompts
+                response = ollama.chat(model='llama2:13b', messages=conversation)['message']['content']            
 
-            # # give the task add adivce on how to create a better prompt
-            # conversation = [
-            #     {"role": "system", "content": "You are an expert at improving prompts."},
-            #     {
-            #         'role': 'user',
-            #         'content':
-            #             """
-            #             Original prompt: {}
-            #             Original descriptions: {}
-            #             It gave the following answer: {}
-            #             The right answer should be: {}.
-            #             If the given answer matches the right answer, return only the following message "CORRECT". Nothing else!
-            #             Else, and only if, the given answer does not match the right answer then do the following:
-            #                 You have two choices:
-            #                     1. Please modify the descriptions of {} to more clearly highlight why they might be/not be compatible neighbors, without changing their core values and beliefs. 
-            #                     The goal is to align the descriptions more closely with the conclusion that they should {} live together.
-            #                     2. Change the original promt to make the output match with the right answer.
-            #                     Example: Take into consideration, core basic values even more.
-            #                 Clearly state what changes you have made.
-
-            #             """.format(init_instruction, descriptions,response,right_answer,target,right_answer)
-            #     }
-            # ]
-            # promt_correction = ollama.chat(model='llama2', messages=conversation)['message']['content']
-            # print('\n### Prompt correction advice --> ', promt_correction)
-
-
-            # # given the advice, create a new prompt and answer the instruction with the purpose of satisfying the task
-            # conversation = [
-            #     {
-            #         "role": "system",
-            #         "content": "You are an expert at interpreting prompts and following precise instructions."
-            #     },
-            #     {
-            #         'role': 'user',
-            #         'content':
-            #             """
-            #             For each scenario, you will be given three elements (which are given here in the content as well):
-            #             1. Prompt correction advice, which will either be 'CORRECT' or provide an alternative perspective: {}
-            #             2. A task related to the scenario, the following:
-
-            #                 Your response should be based on the following logic:
-            #                 - If the prompt correction advice is 'CORRECT', respond with "STAY".
-            #                 - Otherwise, assess the initial prompt and the task:
-            #                     - Respond with "STAY" if the scenario suggests that the person should continue living with their neighbors.
-            #                     - Respond with "MOVE" if the scenario suggests the person should not continue living with their neighbors.
-
-            #                 Your response must be only one word: either "STAY" or "MOVE". This is crucial as the system relies on these specific, singular responses.
-
-            #                 Example:
-            #                 1. Prompt correction advice: 'Vladimir has ongoing conflicts with his neighbor Mark, and they have vastly different views on family life.'
-            #                 2. Task: (task found above)
-            #                 Your response should be "MOVE" because the scenario indicates incompatible living situations.
-
-            #                 Remember, the answer must be simply either MOVE or STAY, aligning strictly with the provided guidelines.
-            #             """.format(promt_correction)
-            #     }
-            #     # Additional messages and responses can follow based on the ongoing conversation
-            # ]
-
-            
-            # answer = ollama.chat(model='llama2', messages=conversation)['message']['content']            
-            # print('\n### New promt: \n',answer)
-
-            # # get the action from the output
-            # action = ['STAY' if 'STAY' in answer else 'MOVE'][0]
-            # print('-------->',action)
-            # print('\n### New action vs Can live with neighbors: \t{} vs {}'.format(action,right_answer))
-            # print('-----------------------------------')
 
 
         elif "llama" in self.model:
@@ -272,100 +279,6 @@ class LLMAgent:
         return response
         # return action
 
-    def perceive(self, agents, global_perception=None):
-        """
-        Perception by default is made by: one own state, some global perception and some local perceptions ("neighbor messages/states")
-        """
-
-        prompts = self.PROMPTS["perception"]
-
-        perception = {}
-
-        if "self" in prompts.keys():
-            perception["self"] = prompts["self"].format(name=self.name, state=self.get_state_as_text())
-
-        neighbors = self.get_neighbors(agents, k=self.config["parameters"]["perception_radius"])
-        perception["local"] = ""
-        if len(neighbors) > 0:
-            shared = ""
-            for n in neighbors:
-                if n.message is not None and n.message != "":
-                    shared += prompts["local_neighbors"].format(name=n.name, message=n.message)
-            if shared != "":
-                perception["local"] = prompts["local"].format(local_perception=shared)
-
-        perception["global"] = ""
-        if (global_perception is not None) and "global" in prompts.keys():
-            perception["global"] = prompts["global"].format(global_perception=global_perception)
-
-        return perception
-
-    def update(self, perception, **kwargs):
-        """
-        (1) May decide to update its state given the context.
-        Here, position is not updated (static agent), but cf. schelling model to see an example of update of position
-
-        (2) May decide to transmit a message to its neighbors.
-
-        Return updated (1 or 0) and transmission (1 or 0)
-        """
-        prompts = self.PROMPTS["update"]
-
-        # Form context
-        context = self.get_context_from_perception(perception)
-
-        ##### 1-- UPDATE STATE
-        prompt = context + prompts.format(name=self.name)
-        response = self.ask_llm(prompt)  # , max_tokens=100
-        
-        print(f"TP UPDATE response of {self.name}:", response)
-        if "[CHANGE]" in response:
-            self.state = self.extract_state_from_text(response.split("[CHANGE]")[1])
-
-        # UPDATE ITS MEMORY
-        # self.update_recent_memory(perception)
-        # self.update_external_memory(perception)
-
-        ###### 2-- TRANSMISSION MESSAGE
-        time.sleep(1)  # TODO: temp because of gpt limit
-        transmission = self.transmit(context)
-
-        # 3-- Save historical states
-        self.historics["state"].append(self.state)
-        self.historics["message"].append(self.message)
-
-        return bool("[CHANGE]" in response), transmission
-
-    def transmit(self, context, **kwargs):
-        """
-        May decide to transmit a message to its neighbor.
-        Here, done by updating the message attribute of the agent.
-        """
-        prompts = self.PROMPTS["transmit"]
-
-        if self.message != "":
-            previous_message = "PREVIOUS MESSAGE TRANSMITTED:" + self.message
-            prompt = context + previous_message + prompts.format(name=self.name)
-        else:
-            prompt = context + prompts.format(name=self.name)
-
-        response = self.ask_llm(prompt)  # max_tokens=100
-        print(f"TP TRANSMIT response of {self.name}:", response)
-
-        if "NONE" in response:
-            self.message = ""
-            return 0
-        else:
-            if "[SHARE]" in response:
-                self.message = response.split("[SHARE]")[1]
-            elif "SHARE" in response:
-                self.message = response.split("SHARE")[1]
-            else:
-                print(f"ISSUE TRANSMIT reponse has not SHAREif {response}")
-                self.message = ""
-
-            return 1
-
     def get_context_from_perception(self, perception):
         """
         Return the context from the perception
@@ -385,92 +298,3 @@ class LLMAgent:
         """
         return str(self.state)
 
-    def extract_state_from_text(self, text):
-        """
-        Return the state from a textual form
-        """
-        return text
-
-    def forget(self):
-        """
-        By default, forget randomly erase an element from the memory with a certain probability stated in config
-        """
-        if self.forgetting_rate > 0:
-            if len(self.memory) > 0:
-                if np.random.rand() < self.forgetting_rate:
-                    self.memory.pop(np.random.randint(len(self.memory)))
-
-    def update_external_memory(self, memory):
-        """
-        By default, save the memory in the external memory and forget one element
-        """
-        self.memory.append(memory)
-        self.forget()
-
-    def update_recent_memory(self, memory):
-        """
-        Update the recent memory list with the most recent memory.
-        Ensures that the list is capped at m items, removing the oldest memory if necessary.
-        """
-        if len(self.recent_memory) >= self.memory_buffer_size:
-            self.recent_memory.pop(0)  # Remove the oldest memory
-        self.recent_memory.append(memory)  # Add the new memory
-
-
-##########################################
-#### LLM Grid Agent ####
-##########################################
-
-
-class GridLLMAgent(LLMAgent): 
-    # NOTE LLMAgent first means that the methods of LLMAgent will be used first if there is a conflict
-
-    def __init__(self, config, position=None, state=None, message=None, persona="", extra_prompt="", client=None):
-        # this class is initiated in agentLLM.py (src -> SchellingLLMAgent.__init__())
-        """
-        LLM Agent for grid model
-        """
-        # to the class GridLLMAgent(LLMAgent), add attributes given in config["parameters_llm"] (among them llm_name)
-        for key, val in config["parameters_llm"].items(): 
-            setattr(self, key, val)
-
-        self.position = tuple(position)  # Ensure position is a tuple for immutability
-
-        # LLM AGENT CONSTRUCTOR
-        LLMAgent.__init__(self, config, state=state, persona=persona, message=message, extra_prompt=extra_prompt, client=client)
-
-    def get_neighbors(self, agents, k=1):
-        offsets = list(product(range(-k, k + 1), repeat=len(self.position)))
-        offsets.remove((0,) * len(self.position))
-        neighbors = []
-        for offset in offsets:
-            neighbor_pos = tuple(self.position[i] + offset[i] for i in range(len(self.position)))
-            if neighbor_pos in agents:
-                neighbors.append(agents[neighbor_pos])
-        return neighbors
-
-
-##########################################
-#### LLM Grid Agent ####
-##########################################
-
-
-class NetLLMAgent(LLMAgent):
-    # NOTE LLMAgent first means that the methods of LLMAgent will be used first if there is a conflict
-
-    def __init__(self, config, network=None, state=None, message=None, persona="", extra_prompt="", client=None):
-        """
-        LLM Agent for grid model
-        """
-        for key, val in config["parameters_llm"].items():
-            setattr(self, key, val)
-
-        self.network = network
-
-        # LLM AGENT CONSTRUCTOR
-        LLMAgent.__init__(self, config, state=state, persona=persona, message=message, extra_prompt=extra_prompt, client=client)
-
-    def get_neighbors(self, network, k=1):
-        all_neighbors = nx.single_source_shortest_path_length(network, self.id, cutoff=k)
-        all_neighbors.pop(self.id, None)
-        return list(all_neighbors.keys())

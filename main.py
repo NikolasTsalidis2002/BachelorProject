@@ -18,34 +18,10 @@ import pathlib
 
 
 def run_experiment(config, module=None, with_llm=True):
-
-    if with_llm:
-        score = run_llm_experiment(config, module)
-    else:
-        score = run_abm_experiment(config, module)
+    score = run_llm_experiment(config, module)
 
     return score
 
-
-def run_abm_experiment(config, module):
-    """
-    Run Experiment with ABM
-    Make vary the parameter specified in config["main_abm"]
-    """
-    del config["parameters_llm"]
-
-    # Initialise experiment
-    expe_id = config["name"] + "/abm/" + str(datetime.datetime.now().strftime("%m%d%H%M%S"))
-    folder = "outputs/" + expe_id + "/"
-    pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
-
-    ModelClass = getattr(module, config["model_class_abm"], None)  # getattr(other_module, class_name, None)
-
-    print("***Run ABM model ***")
-    model = ModelClass(config, id=expe_id)
-    score = model.run()
-
-    return score
 
 
 def run_llm_experiment(config, module):
@@ -62,6 +38,7 @@ def run_llm_experiment(config, module):
 
     print("***Run LLM model ***")
     model = ModelClass(config, id=expe_id)
+    # print('Cause an error on on purpose in main.py so we can see the states and positions ',[][0])
     score = model.run()
     model.save_historics(folder + "historics.json")
 
@@ -101,10 +78,8 @@ if __name__ == "__main__":
     # Here, several runs of the same model with different parameters are run.
     # Either it will launch a plain ABM experiment or a LLM-driven experiment, depending on the config file.
     if xp == "schelling":
-        from src.models.schelling import model as schelling_model
+        from src.schelling import model as schelling_model
         run_experiment(config, module=schelling_model,with_llm=with_llm)
-    elif xp == "belief":
-        from src.models.belief import model as belief_model
-        run_experiment(config, module=belief_model, with_llm=with_llm)
+
     else:
         raise ValueError(f"Experiment {xp} not implemented yet")

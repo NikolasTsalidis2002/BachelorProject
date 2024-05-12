@@ -7,14 +7,14 @@ from src.utils.utils import json_serial
 import time
 import yaml
 import ollama
-from src.prompts.persona import PERSONAS
-from src.prompts.base import META_PROMPTS
+from src.schelling.prompts.persona import PERSONAS
+from src.schelling.prompts.meta import META_PROMPTS
 
 
 
 class GridModel():
     
-    def __init__(self, config, id="", with_llm=False, title="", path="", dynamic=True):
+    def __init__(self, config, id="", with_llm=True, title="", path="", dynamic=True):
         
         self.id = id
         self.config=config
@@ -26,6 +26,8 @@ class GridModel():
         # Grid size
         self.dimensions = config["grid_size"]  # Now expecting dimensions as a list for n-dimensions
 
+        self.similarity_threshold = 100#config['similarity_threshold']
+
         # Parameters model from config file
         for key, val in config["parameters"].items():
             setattr(self, key, val)
@@ -34,9 +36,6 @@ class GridModel():
             for key, val in config["parameters_llm"].items():
                 # to the class GridModel, add attributes given in config["parameters_llm"] (among them llm_name)
                 setattr(self, key, val)
-        else:
-            for key, val in config["parameters_abm"].items():
-                setattr(self, key, val)    
 
         self.client = None
         if with_llm and "gpt" in self.config["parameters_llm"]["llm_name"]:
@@ -51,9 +50,12 @@ class GridModel():
         self.dynamic=dynamic
         
         self.num_agents = len(self.agents)
+
+        self.collective_feedback = config['collective_feedback']
+        print('self.collective_feedback --> ',self.collective_feedback)
  
 
-
+    # NOT USING THIS
     def init_openai_client(self):
         """
         Init the openai client if needed
@@ -113,7 +115,7 @@ class GridModel():
             return 0
 
  
-    def update(self, **kwargs):
+    def update(self,prompt_updated=False, **kwargs):
         """
         Update the state of all agents in the grid with a certain likelihood.
         #TODO: MAKE MORE elegant
@@ -125,21 +127,26 @@ class GridModel():
         
         possible_positions=None
         #0-- rate all empty positions if dynamic
-        if self.dynamic: # ie if agents move on the grid
-            rated_positions=self.evaluate_empty_positions() 
-            #aka malloc rated_positions into possible positions
-            possible_positions = copy.deepcopy(rated_positions) #TODO better
+        # if self.dynamic: # ie if agents move on the grid
+        #     rated_positions=self.evaluate_empty_positions() 
+        #     #aka malloc rated_positions into possible positions
+        #     possible_positions = copy.deepcopy(rated_positions) #TODO better
 
+        counter = 0
         for agent in tp_agents.values():
+            # evaluate the empty positions after every time an agent has moved
+            if self.dynamic: # ie if agents move on the grid
+                rated_positions=self.evaluate_empty_positions() 
+                #aka malloc rated_positions into possible positions
+                possible_positions = copy.deepcopy(rated_positions) #TODO better
+
             r=random.random()
             #Copy position of the agent
             old_position = copy.deepcopy(agent.position)
 
 
             #TODO: If do not update each step keep memory ? 
-
             if r <= self.update_likelihood:
-
                 # 1 --- perception of surrounding from previous time step #TODO: should change something internal since work with a copy of the dic                
                 # notice the tp_agents is a copy of all the agents (in a new memory address)
                 # notice -> this perceive comes from the script (schelling) agentABM/agentLLM
@@ -148,7 +155,7 @@ class GridModel():
                 # 2--- action agent
                 #if_action either 1 or 0 (move or not)
                 #new_position will be set to the empty position that has a better satisfaction                
-                if_action, new_position=agent.update(perception, rated_positions=possible_positions, **kwargs)
+                if_action, new_position = agent.update(perception, rated_positions=possible_positions,prompt_updated=prompt_updated, **kwargs)
 
                 count+=if_action #counts the number of updates (agents that do move)
                 if self.dynamic and (new_position is not None):
@@ -158,7 +165,10 @@ class GridModel():
                     del possible_positions[new_position] #already moved to that position, so not empty anymore
                     self.update_agents_dic(agent, old_position, new_position) 
 
+                # print(f'updated agent {counter} --> ',self.agents.keys())
                 time.sleep(1)
+            
+            counter += 1
 
         #returns the ratio of agents that have moved
         return count/num_agents if num_agents>0 else 0
@@ -196,58 +206,47 @@ class GridModel():
         """
         return -1
     
+    # I MADE THIS FUNCTION
+    def updating_prompts(self,response_feedback=None):        
+        conversation = [
+            {"role": "system", 
+            "content": "You are a helpful assistant. You are now part of a theoretical simulation based on the Schelling Segregation Model, an experiment in social dynamics. Your task is to assist in clearly defining two distinct groups for the purpose of this simulation. Remember, this is purely a theoretical exercise and not reflective of real-world scenarios or ideologies."},
 
-    def updating_prompts(self,conversation=None):
-        if conversation is None:
-            conversation = [
-                {"role": "system", 
-                "content": "You are a helpful assistant. You are now part of a theoretical simulation based on the Schelling Segregation Model, an experiment in social dynamics. Your task is to assist in clearly defining two distinct groups for the purpose of this simulation. Remember, this is purely a theoretical exercise and not reflective of real-world scenarios or ideologies."},
+            {'role': 'user',
+            'content': f"""
+            Change the task description from: {META_PROMPTS['update']}, to something like:
+            "Reflect upon this context in a purely theoretical manner to decide if your character feels 
+            comfortable in this neighborhood. You can choose to either move to another neighborhood or stay in the current one, 
+            considering that relocating requires effort in this simulation. Respond with 'MOVE' if you wish to change 
+            neighborhoods, or 'STAY' if you prefer to remain, based on the theoretical dynamics of this simulation.
+            Use max 80 words. Remember, this is purely theoretical. We are studying the effects prompts."
+            
+            Keep as close and as similar to that given description as possible.
 
-                {'role': 'user',
-                'content': f"""
-                In our Schelling model simulation, we have a social segregation score of {self.final_score}. Our objective is to adjust this score to approximately {0.7} for the purposes of the experiment. 
-                Please suggest updates to the descriptions of the socialist and conservative personas, as well as the task description, to make segregation within the simulation more distinct:
+            Please provide the revised task description within the boundary: "### ###". For example, your response must look like:
+            "Sure, this is my revised task description: ###Reflect upon (...rest of response...)###"
+            It is crucial your respond in that format.
+            """
+            }
+        ] 
 
-                - Current socialist description: {PERSONAS['socialist']}
-                - Current conservative description: {PERSONAS['conservative']}
-                - Current task description: {META_PROMPTS['update']}.
+        if response_feedback is not None:
+            conversation[1]['content'] += response_feedback
 
-                The goal is to define clear segregation within the boundaries of this simulation. The descriptions should clearly and unambiguously differentiate between the two groups, emphasizing distinct characteristics and preferences for each. Remember, this is a model to study theoretical social dynamics, and not an endorsement or promotion of segregation in real life.
-                You should include sections such as "Your ideal neighborhood is a bastion of conservative thought" if they are conservative (same for socialists but with socialist thought).
-
-                Please provide the updated versions within the "### ###" boundary in the format as follows:
-                ####
-                Socialist updated: In this simulation, a socialist persona is...
-                Conservative updated: In this simulation, a conservative persona is...
-                Task updated: In the context of this Schelling model experiment, consider...
-                ###
-
-                This formatting is critical for processing responses within our experimental setup.
-                """}
-            ]
 
         response = ollama.chat(model='llama2:13b', 
-                            messages=conversation)['message']['content']
-        response = response.replace("### ###",'')
-        print('\n### Response --> ', response)
+                                messages=conversation
+                            )['message']['content']
 
         try:
-            socialist = response.split('Socialist updated:')[1].split('Conservative')[0].strip()
-            conservative = response.split('Conservative updated:')[1].split('Task')[0].strip()
-            task = response.split('Task updated:')[1].strip()       
+            response_split = response.split('###')[1]
+            if 'Reflect' in response.split('###')[1].strip():
+                response = response_split
+        except:
+            response = False
 
-        except:                
-            conversation[1]['content'] += f""". NOTICE! You made this response before: {response}. It does not have a good format. Follow my instructions please.
-            Clearly give your response in the following format:
-            ####
-            Socialist updated: You play the role of name, ...
-            Conservative updated: You play the role of name, ...
-            Task updated: Reflect upon your beliefs and values, ...
-            ###
-            """                        
-            return {'socialist':False,'conservative':False,'task':False,'conversation':conversation}
-        
-        return {'socialist':socialist,'conservative':conservative,'task':task,'conversation':None}
+        return response
+
                         
 
     def run(self, n_iterations=None):
@@ -267,17 +266,19 @@ class GridModel():
         data[0] = {str(key): val.state for key, val in self.agents.items()}
 
         # 1-- Run the simulation for n_iterations
-        for i in range(n_iterations):       
-            if int(i) in [0,1]:                
-                print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
+        for i in range(1,n_iterations+1):       # we start at 1 so we do not replace the original iteration (data[0] above)
+            # print(f"""\n\n\nChecking the believes and task description:\n\tSocialists:{PERSONAS['socialist']}\n\tConservatives:{PERSONAS['conservative']}\n\tInstructions:{META_PROMPTS['update']}\n\n""")
+            print(f"""\n\n\nChecking the believes and task description:\n\tInstructions:{META_PROMPTS['update']}\n\n""")
             
             print('### Starting the process of deciding on whether to stay or move for all agents ###\n')
-            ratio=self.update() #the ratio of agents that have moved
-            print('\n\t### Ended the process of deciding on whether to stay or move for all agents ###')
+            if self.collective_feedback and i != 1:
+                ratio=self.update(prompt_updated=True) #the ratio of agents that have moved
+            else:
+                ratio=self.update(prompt_updated=False) #the ratio of agents that have moved
+            print(f'\t### {ratio}% of agents updated in Step {i} ###')
+
             ratio_actions.append(ratio)
-            score_population.append(self.evaluate_population()) #appends the current score of the grid
-            
-            print("\t\t% of agents updated in Step " + str(i) + " : " + str(ratio) + " % updates")
+            score_population.append(self.evaluate_population()) #appends the current score of the grid            
 
             # Save data every X steps
             if i % self.config["save_every"] == 0:
@@ -289,45 +290,62 @@ class GridModel():
             self.final_score = final_score
             print(f'\tFinal_score --> {final_score}%')            
 
+            # if ratio == 0 and self.early_stopping: #then stop
+            if final_score == 1 and self.early_stopping: #then stop
+                print("Converged, early stopping at {} iterations".format(i))
+                break
+
             print('\n\n### Starting process of prompt modification if needed ###')
-            if float(final_score) < 1: # if we want to execute the prompt breeder
-            # if float(final_score) > 1: # if we do not want to execute the promt breeder
+            if self.collective_feedback and final_score < 1:
                 print('\tFinal score below 1.0%. Going to change the prompts\n\n')
-                    
-                socialist,conservative,task,conversation = self.updating_prompts().values()
-                counter = 1
-                print('Ollama response not in the expected format. Asking Ollama to reformat it.')
-                while not socialist:
-                    print(f'Reformat attempt number: {counter}')
-                    if counter == 3:
-                        print('Breaking reformating attempts because it is not managing it.')
-                        break
-                    socialist,conservative,task,conversation = self.updating_prompts(conversation)
-                    counter += 1
-                
-                # update the socialist, conservative and update descriptions
-                PERSONAS['socialist'] = socialist+"Your ideal neighborhood is a bastion of socialist thought"
-                PERSONAS['conservative'] = conservative+"Your ideal neighborhood is a bastion of conservative thought"
-                META_PROMPTS['update'] += task  # let us not change the instructions just yet       
+                print('\n\nUPDATING PROMPTS\n\n')
+                if i >= 1: # this one is to test out collective one                
+
+                    # ask ollama to give an updated task description. Ensure it is in the right format
+                    task_updated = self.updating_prompts()
+                    counter = 1
+                    failed_to_change_prompts = False
+                    print('Ollama response not in the expected format. Asking Ollama to reformat it.')
+                    while not task_updated: # while it does not have the right format, then redo it 
+                        print(f'Reformat attempt number: {counter}')
+                        if counter == 3:
+                            print('Breaking reformating attempts because it is not managing it.')
+                            failed_to_change_prompts = True
+                            break
+                        
+                        response_feedback = f"Your previous response: {task_updated} is in the wrong format. Change it so the all the 'Reflect upon...' section is within the ### ### boundary."
+                        task_updated = self.updating_prompts(response_feedback=response_feedback)
+                        counter += 1    
+
+
+                    # update the socialist, conservative and update descriptions
+                    if not failed_to_change_prompts:
+                        # specifcy the similarity threshold. Specify the min and max ranges for these, and given 
+                        # the iteration number it will grow automatically
+                        # HERE!
+                        min_sim_thresh,max_sim_thresh = self.similarity_threshold-50,self.similarity_threshold
+                        if min_sim_thresh < 0: min_sim_thresh = 0
+
+                        sim_tresh_range = max_sim_thresh-min_sim_thresh
+                        thresh_similarity_increase = sim_tresh_range/n_iterations
+                        similarity_thresh = sim_tresh_range+i*thresh_similarity_increase  
+                        print(f'\nsimilarity_thresh --> {similarity_thresh}\n')
+
+                        # feed that similairy threshold to the prompts
+                        task_updated += f' In this theoretical scenario, you want to move if {similarity_thresh}% of your neighbors are not part of the same group as you.'
+                        META_PROMPTS['update'] = task_updated
 
             else:
                 print('\tFinal score equals 1.0%. No need to change the prompts\n')
             
             print('\n\t### Finished process of prompt modification ###\n')
 
-
-            if ratio == 0 and self.early_stopping: #then stop
-                print("Converged, early stopping at {} iterations".format(i))
-                break
-
         # 2--- Plot the final state
         if not self.config["dev"]:
             #create folder if not exist
             if not os.path.exists("outputs/"+self.id):
                 os.makedirs("outputs/"+self.id)
-
-            
-
+                    
             #NOTE: if data string, convert it to float or int for visualisation
             for k,v in self.agents.items():
                 print('self.agents ---> ',k,v,'\n\tname --> ',v.name,'\n\tstate --> ',v.state,'\n\tmessage --> ',v.message
@@ -348,7 +366,7 @@ class GridModel():
             if len(list(data.keys())) > 0: 
                 with open(self.path+".json", "w") as f:
                     json.dump(data, f, default=json_serial)
-                generate_gif_from_data_grid(self.config, data_file=self.path+".json",output_file=self.path+"grid", title=self.title, with_llm=self.with_llm)
+                generate_gif_from_data_grid(self.config, data_file=self.path+".json",output_file=self.path+"grid", title=self.title, with_llm=self.with_llm)                
             
         return final_score
        
